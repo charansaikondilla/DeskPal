@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DeskPal — A little company. A better day.</title>
+<link rel="stylesheet" href="ganesh_showcase.css"><script src="ganesh_showcase.js" defer></script>
+</head>
+<body>
+<header class="nav">
+<a class="wordmark" href="/" aria-label="DeskPal home"><span class="logo">d<span>p</span></span>deskpal<span class="wordmark-dot">.</span></a>
+<span class="edition">YOUR DESKTOP, A LITTLE MORE ALIVE</span>
+<a class="edition" href="/dashboard" style="text-decoration:none">DASHBOARD ↗</a>
+<span class="connection"><i id="connection-dot"></i><span id="connection-label">Connecting</span></span>
+</header>
+<main>
+<section class="hero" id="landing">
+<div class="hero-copy">
+<div class="eyebrow"><span></span> MEET YOUR NEW DESKTOP COMPANION</div>
+<h1>A little company.<br>A <em>better day.</em></h1>
+<p class="intro">Bring your desktop to life.<br>A playful companion for the way you work.</p>
+<button id="launch-button" class="launch-button"><span id="launch-label">Launch DeskPal</span><span class="arrow" aria-hidden="true">↗</span></button>
+<p class="launch-note">On your desktop. In your corner.</p>
+<p id="launch-status" role="status" aria-live="polite"></p>
+</div>
+<div class="visual" aria-label="DeskPal character preview">
+<div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+<span class="spark spark-one">✳</span><span class="spark spark-two">+</span>
+<div class="preview-window"><span class="window-dots">● ● ●</span><span>YOUR DAILY +1</span><span>↗</span></div>
+<div class="character-halo"></div>
+<img id="preview-character" src="assets/ganesh/ganesh_stand.png" alt="Ganesh, your animated DeskPal companion" width="313" height="313">
+<div class="character-floor"></div>
+<div class="floating-label label-top"><i></i> A little joy, always nearby.</div>
+<div class="floating-label label-bottom"><span>✦</span> Small companion. Big personality.</div>
+<span class="visual-caption">MADE FOR YOUR EVERYDAY</span>
+</div>
+</section>
+<section id="running-panel" class="running-panel" hidden aria-label="DeskPal is running">
+<span class="running-badge"><i></i> LIVE ON YOUR DESKTOP</span>
+<h2>Your pal is here<span>.</span></h2>
+<p>Find Ganesh at the bottom right. Drag to move. Right-click to explore.</p>
+<div class="emotes" aria-label="Play a desktop animation">
+<button data-emote="walk">Walk</button><button data-emote="run">Run</button>
+<button data-emote="hungry">Hungry</button><button data-emote="laddu">Laddu toss</button>
+<button data-emote="wave">Wave</button><button data-emote="celebrate">Celebrate</button>
+</div>
+<p id="emote-status" role="status" aria-live="polite">Ready to play.</p>
+<a class="launch-button" href="/dashboard"><span>Open wellbeing dashboard</span><span class="arrow" aria-hidden="true">↗</span></a>
+<button id="back-button" class="text-button">← Back to DeskPal</button>
+</section>
+</main>
+<footer><span>WALK. PLAY. TAKE A BREATH.</span><span class="footer-center">A companion, not another tab to manage.</span><span>DESKPAL · WINDOWS</span></footer>
+</body>
+</html>

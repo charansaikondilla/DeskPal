@@ -1,0 +1,26 @@
+DESKPAL - START HERE
+====================
+
+NEW LAUNCH PAGE
+Double-click Start-DeskPal-Launch.bat, then click Launch DeskPal.
+Local link: http://127.0.0.1:8766/
+This starts the real desktop app with Ganesh selected. The buttons on
+the running screen play animations on the desktop character.
+Opening the page alone does not launch the desktop app.
+Repeated launches bring the existing companion back to the corner.
+
+DIRECT DESKTOP START
+
+1. Double-click Start-DeskPal.bat in this folder.
+2. Wait a moment. DeskPal appears near the bottom-right of the screen.
+3. If Windows asks about Python, install Python from python.org and enable
+   "Add Python to PATH", then double-click Start-DeskPal.bat again.
+4. To choose Ganesh, right-click DeskPal, choose Change character, then Ganesh.
+5. To test the animations, double-click DeskPal and open Settings -> Emotes.
+6. Select Walking, Running, Getting hungry, Holding a laddu, Eating a laddu,
+   Satisfied, or Celebrating.
+
+If DeskPal does not appear, double-click If-Something-Goes-Wrong.bat.
+Keep that window open and read the message it shows.
+
+To stop DeskPal: right-click the buddy and choose Quit DeskPal.

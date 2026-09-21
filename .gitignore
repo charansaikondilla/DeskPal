@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+
+# Build output / old copies (regenerated, not source)
+DeskPal-Windows/
+DeskPal-Windows.zip
+_old_ganesh_backup/
+outputs/
+
+# Test screenshots and scratch renders
+verification/
+*_audit.png
+*_preview.png
+_prep_*.png
+clean_ganesh_test.png
+verified_independent_sprites.png
+image.png
+image copy.png
+
+# Tool symlinks
+node_modules
+.artifact_node_modules
+.claude/

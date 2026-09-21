@@ -1,0 +1,470 @@
+{
+  "schema": "deskpal.animation-design.v1",
+  "status": "design_only_not_runtime_assets",
+  "character_reference": "../../../lord ganesh .png",
+  "total_planned_character_frames": 200,
+  "gutters_px": 16,
+  "frame_order": "left_to_right_top_to_bottom",
+  "sheets": [
+    {
+      "id": "standing",
+      "frames": 16,
+      "columns": 4,
+      "rows": 4,
+      "segments": [
+        {
+          "name": "idle",
+          "first_frame": 0,
+          "last_frame": 11,
+          "playback": "loop"
+        },
+        {
+          "name": "blink",
+          "first_frame": 12,
+          "last_frame": 15,
+          "playback": "insert"
+        }
+      ],
+      "frame_canvas": [
+        512,
+        512
+      ],
+      "ground_anchor": [
+        256,
+        464
+      ]
+    },
+    {
+      "id": "breathing",
+      "frames": 16,
+      "columns": 4,
+      "rows": 4,
+      "segments": [
+        {
+          "name": "inhale",
+          "first_frame": 0,
+          "last_frame": 5,
+          "playback": "phase"
+        },
+        {
+          "name": "exhale",
+          "first_frame": 6,
+          "last_frame": 11,
+          "playback": "phase"
+        },
+        {
+          "name": "one_eye_peek",
+          "first_frame": 12,
+          "last_frame": 15,
+          "playback": "insert"
+        }
+      ],
+      "frame_canvas": [
+        512,
+        512
+      ],
+      "ground_anchor": [
+        256,
+        464
+      ]
+    },
+    {
+      "id": "modak_jump",
+      "frames": 32,
+      "columns": 4,
+      "rows": 8,
+      "duration_ms": 4200,
+      "segments": [
+        {
+          "name": "hold",
+          "first_frame": 0,
+          "last_frame": 3,
+          "duration_ms": 450
+        },
+        {
+          "name": "toss",
+          "first_frame": 4,
+          "last_frame": 7,
+          "duration_ms": 350
+        },
+        {
+          "name": "rise",
+          "first_frame": 8,
+          "last_frame": 11,
+          "duration_ms": 350
+        },
+        {
+          "name": "apex",
+          "first_frame": 12,
+          "last_frame": 15,
+          "duration_ms": 450
+        },
+        {
+          "name": "catch_land",
+          "first_frame": 16,
+          "last_frame": 19,
+          "duration_ms": 450
+        },
+        {
+          "name": "swallow",
+          "first_frame": 20,
+          "last_frame": 23,
+          "duration_ms": 700
+        },
+        {
+          "name": "tummy_pat",
+          "first_frame": 24,
+          "last_frame": 27,
+          "duration_ms": 650
+        },
+        {
+          "name": "settle",
+          "first_frame": 28,
+          "last_frame": 31,
+          "duration_ms": 800
+        }
+      ],
+      "events": [
+        {
+          "frame": 6,
+          "name": "release_modak"
+        },
+        {
+          "frame": 18,
+          "name": "mouth_contact_hide_modak"
+        },
+        {
+          "frame": 25,
+          "name": "tummy_pat"
+        }
+      ],
+      "frame_canvas": [
+        512,
+        512
+      ],
+      "ground_anchor": [
+        256,
+        464
+      ]
+    },
+    {
+      "id": "window_peek",
+      "frames": 12,
+      "columns": 4,
+      "rows": 3,
+      "segments": [
+        {
+          "name": "appear",
+          "first_frame": 0,
+          "last_frame": 2,
+          "playback": "once"
+        },
+        {
+          "name": "emerge",
+          "first_frame": 3,
+          "last_frame": 5,
+          "playback": "once"
+        },
+        {
+          "name": "peek",
+          "first_frame": 6,
+          "last_frame": 8,
+          "playback": "hold"
+        },
+        {
+          "name": "retreat",
+          "first_frame": 9,
+          "last_frame": 11,
+          "playback": "once"
+        }
+      ],
+      "frame_canvas": [
+        512,
+        512
+      ],
+      "ground_anchor": [
+        256,
+        464
+      ]
+    },
+    {
+      "id": "water",
+      "frames": 24,
+      "columns": 4,
+      "rows": 6,
+      "segments": [
+        {
+          "name": "slump",
+          "first_frame": 0,
+          "last_frame": 7,
+          "playback": "once_then_hold"
+        },
+        {
+          "name": "drink",
+          "first_frame": 8,
+          "last_frame": 19,
+          "playback": "acknowledgement"
+        },
+        {
+          "name": "recover",
+          "first_frame": 20,
+          "last_frame": 23,
+          "playback": "once"
+        }
+      ],
+      "frame_canvas": [
+        512,
+        512
+      ],
+      "ground_anchor": [
+        256,
+        464
+      ]
+    },
+    {
+      "id": "blessing",
+      "frames": 20,
+      "columns": 4,
+      "rows": 5,
+      "duration_ms": 3000,
+      "segments": [
+        {
+          "name": "attend",
+          "first_frame": 0,
+          "last_frame": 3,
+          "playback": "once"
+        },
+        {
+          "name": "raise_palm",
+          "first_frame": 4,
+          "last_frame": 7,
+          "playback": "once"
+        },
+        {
+          "name": "bless",
+          "first_frame": 8,
+          "last_frame": 11,
+          "playback": "once"
+        },
+        {
+          "name": "hold",
+          "first_frame": 12,
+          "last_frame": 15,
+          "playback": "hold"
+        },
+        {
+          "name": "lower",
+          "first_frame": 16,
+          "last_frame": 19,
+          "playback": "once"
+        }
+      ],
+      "frame_canvas": [
+        512,
+        512
+      ],
+      "ground_anchor": [
+        256,
+        464
+      ]
+    },
+    {
+      "id": "study",
+      "frames": 24,
+      "columns": 4,
+      "rows": 6,
+      "segments": [
+        {
+          "name": "enter",
+          "first_frame": 0,
+          "last_frame": 5,
+          "playback": "once"
+        },
+        {
+          "name": "read",
+          "first_frame": 6,
+          "last_frame": 13,
+          "playback": "loop"
+        },
+        {
+          "name": "page_turn",
+          "first_frame": 14,
+          "last_frame": 19,
+          "playback": "occasional"
+        },
+        {
+          "name": "exit",
+          "first_frame": 20,
+          "last_frame": 23,
+          "playback": "once"
+        }
+      ],
+      "frame_canvas": [
+        512,
+        512
+      ],
+      "ground_anchor": [
+        256,
+        464
+      ]
+    },
+    {
+      "id": "mouse_play",
+      "frames": 24,
+      "columns": 4,
+      "rows": 6,
+      "segments": [
+        {
+          "name": "greet",
+          "first_frame": 0,
+          "last_frame": 3,
+          "playback": "once"
+        },
+        {
+          "name": "chase",
+          "first_frame": 4,
+          "last_frame": 11,
+          "playback": "loop"
+        },
+        {
+          "name": "catch",
+          "first_frame": 12,
+          "last_frame": 15,
+          "playback": "once"
+        },
+        {
+          "name": "cuddle",
+          "first_frame": 16,
+          "last_frame": 19,
+          "playback": "hold"
+        },
+        {
+          "name": "release",
+          "first_frame": 20,
+          "last_frame": 23,
+          "playback": "once"
+        }
+      ],
+      "frame_canvas": [
+        768,
+        512
+      ],
+      "ground_anchor": [
+        384,
+        464
+      ]
+    },
+    {
+      "id": "mouse_ride",
+      "frames": 16,
+      "columns": 4,
+      "rows": 4,
+      "segments": [
+        {
+          "name": "mount",
+          "first_frame": 0,
+          "last_frame": 3,
+          "playback": "once"
+        },
+        {
+          "name": "trot",
+          "first_frame": 4,
+          "last_frame": 11,
+          "playback": "loop"
+        },
+        {
+          "name": "dismount",
+          "first_frame": 12,
+          "last_frame": 15,
+          "playback": "once"
+        }
+      ],
+      "frame_canvas": [
+        768,
+        512
+      ],
+      "ground_anchor": [
+        384,
+        464
+      ]
+    },
+    {
+      "id": "happy_jump",
+      "frames": 16,
+      "columns": 4,
+      "rows": 4,
+      "duration_ms": 1300,
+      "segments": [
+        {
+          "name": "anticipate",
+          "first_frame": 0,
+          "last_frame": 3,
+          "duration_ms": 240
+        },
+        {
+          "name": "takeoff",
+          "first_frame": 4,
+          "last_frame": 6,
+          "duration_ms": 140
+        },
+        {
+          "name": "apex",
+          "first_frame": 7,
+          "last_frame": 9,
+          "duration_ms": 260
+        },
+        {
+          "name": "descend",
+          "first_frame": 10,
+          "last_frame": 12,
+          "duration_ms": 180
+        },
+        {
+          "name": "land_recover",
+          "first_frame": 13,
+          "last_frame": 15,
+          "duration_ms": 480
+        }
+      ],
+      "frame_canvas": [
+        512,
+        512
+      ],
+      "ground_anchor": [
+        256,
+        464
+      ]
+    }
+  ],
+  "props": [
+    {
+      "id": "modak",
+      "type": "separate_sprite",
+      "motion": "hand_attachment_then_continuous_arc_then_mouth_occlusion"
+    },
+    {
+      "id": "cup",
+      "type": "separate_sprite",
+      "motion": "hand_anchor"
+    },
+    {
+      "id": "book",
+      "type": "separate_layers",
+      "motion": "lap_anchor_and_page_hinge"
+    },
+    {
+      "id": "mouse",
+      "run_frames": 8,
+      "sniff_sit_frames": 4,
+      "type": "separate_atlas"
+    },
+    {
+      "id": "gold_glow",
+      "type": "optional_effect_layer"
+    }
+  ],
+  "concepts": [
+    "01-personality-concepts.png",
+    "02-play-and-jump-concepts.png"
+  ]
+}

@@ -1,0 +1,10 @@
+Cue,Time,Layer: Ganesh,Layer: Rat,Layer: Modak,Director motion note,Runtime safety rule
+01,00:00-00:15,Hidden / far idle,rat_roam loop,Hidden,"Rat owns the screen; use small sniff pauses and tail flicks.","Rat stays within safe desktop bounds."
+02,00:15-00:20,Hidden / far idle,rat_notice then rat_approach,modak_idle,"Place one modak ahead of the rat; rat looks at it before walking.","Modak never overlaps the rat before the pick-up anchor."
+03,00:20-00:25,ganesh_far_notice then ganesh_point,rat_pickup then rat_hold,modak_pickup then parent_to_rat_paws,"Ganesh appears small and distant, sees the modak from across the screen.","Keep a minimum 55 percent screen-width distance between Ganesh and rat."
+04,00:25-user click,ganesh_ready,rat_hold fidget,modak_parent_to_rat_paws,"Show one button: Take Modak from Rat. The scene pauses in a living pose.","Button cannot trigger twice and cannot cover a sprite."
+05,click-00:15,ganesh_run frames 04-06,rat_jog then rat_sprint,modak_parent_to_rat_paws,"Start with a wide gap. Rat accelerates first; Ganesh follows one beat later.","Actors use separate x/y coordinates and separate animation clocks."
+06,00:15-01:35,ganesh_run frames 05-07 alternate,rat_sprint and rat_glance alternate,modak_parent_to_rat_paws,"Refresh chase every 6-10 seconds: lane change, glance-back, tiny speed change, never a repeating video loop.","Keep 110px minimum gap; turn before desktop edges; modak follows rat paw anchor."
+07,01:35-01:52,ganesh_run then ganesh_catch_ready,rat_sprint then rat_happy_stop,modak_parent_to_rat_paws,"Rat slows with a tiny tired pause; Ganesh gains and reaches out safely.","No catch begins within 24px of a screen edge."
+08,01:52-01:56,ganesh_catch_ready,rat is moved to Ganesh hand anchor,modak_hold,"Only now bring the actors together: a gentle cupped-hands catch.","Swap to dedicated catch poses; never merge raw sprite sheets."
+09,01:56-02:00,ganesh_idle happy,rat_happy,modak_handoff then modak_idle,"Warm ending: Ganesh offers the modak, rat smiles, both settle.","One modak only; clear all chase timers and return safely to idle."

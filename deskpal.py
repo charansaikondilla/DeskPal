@@ -43,7 +43,7 @@ from tkinter import messagebox
 from tkinter import filedialog
 
 APP_NAME = "DeskPal"
-APP_VERSION = "1.2"
+APP_VERSION = "1.3"
 IS_WIN = sys.platform.startswith("win")
 IS_MAC = sys.platform == "darwin"
 
@@ -486,9 +486,41 @@ DEFAULTS = {
     "fps": 30,
     "first_run": True,
 
+    # daily health targets shown as rings in the app ---------------------
+    "water_target": 8,             # glasses
+    "eye_target": 10,              # eye rests
+    "stretch_target": 6,
+    "posture_target": 8,
+    "break_target": 6,
+    "focus_target": 4,             # completed focus sessions
+    "active_target": 360,          # minutes of active desk time
+
+    # what the companion says on each card ("" = built-in phrases) -------
+    "break_msg": "",
+    "eye_msg": "",
+    "water_msg": "",
+    "stretch_msg": "",
+    "posture_msg": "",
+    "hunger_msg": "",
+    "meditate_msg": "",
+
+    # only remind between work_start_hour and work_end_hour ---------------
+    "work_hours_only": False,
+
     # custom productivity goals (list of {id, name, target, created}) -----
     "goals": [],
+
+    # user-defined reminders (list of {id, name, every, on, msg}) ---------
+    "custom_reminders": [],
 }
+
+TARGET_LIMITS = {
+    "water_target": (1, 30), "eye_target": (1, 40), "stretch_target": (1, 30),
+    "posture_target": (1, 40), "break_target": (1, 30), "focus_target": (1, 20),
+    "active_target": (30, 900),
+}
+REMINDER_MSG_KEYS = ("break_msg", "eye_msg", "water_msg", "stretch_msg",
+                     "posture_msg", "hunger_msg", "meditate_msg")
 
 
 class Config(dict):
@@ -556,6 +588,14 @@ class Config(dict):
                     self[key] = max(lo, min(hi, int(self.get(key, DEFAULTS[key]))))
                 except Exception:
                     self[key] = DEFAULTS[key]
+            for key, (lo, hi) in TARGET_LIMITS.items():
+                try:
+                    self[key] = max(lo, min(hi, int(self.get(key, DEFAULTS[key]))))
+                except Exception:
+                    self[key] = DEFAULTS[key]
+            for key in REMINDER_MSG_KEYS:
+                self[key] = str(self.get(key) or "").strip()[:140]
+            self["custom_reminders"] = self._clean_custom(self.get("custom_reminders"))
             if self.get("character") not in ("dog", "cat", "human", "custom"):
                 self["character"] = "dog"
             if self.get("breath_pattern") not in ("box", "478", "calm"):
@@ -564,6 +604,30 @@ class Config(dict):
             self["pet_name"] = (name[:18] or "Mochi")
         except Exception:
             log_exc("Config.clamp")
+
+    @staticmethod
+    def _clean_custom(items):
+        """Custom reminders: at most 12, every entry well-formed."""
+        out = []
+        seen = set()
+        for it in (items or []) if isinstance(items, list) else []:
+            if not isinstance(it, dict):
+                continue
+            rid = str(it.get("id") or "").strip()[:12]
+            name = str(it.get("name") or "").strip()[:40]
+            if not rid or not name or rid in seen:
+                continue
+            seen.add(rid)
+            try:
+                every = max(5, min(720, int(it.get("every", 60))))
+            except Exception:
+                every = 60
+            out.append({"id": rid, "name": name, "every": every,
+                        "on": bool(it.get("on", True)),
+                        "msg": str(it.get("msg") or "").strip()[:140]})
+            if len(out) >= 12:
+                break
+        return out
 
 
 # --------------------------------------------------------------------------
@@ -4144,6 +4208,7 @@ class Reminders:
         self.app = app
         self.cfg = app.cfg
         self.timers = {k: 0.0 for k in self.ORDER}
+        self.custom_timers = {}          # custom reminder id -> active seconds
         self.work_seconds = 0.0          # active seconds since the last break
         self.session_seconds = 0.0       # active seconds since the app started
         self.idle_for = 0.0
@@ -4167,7 +4232,76 @@ class Reminders:
     def reset_all(self):
         for k in self.timers:
             self.timers[k] = 0.0
+        for k in self.custom_timers:
+            self.custom_timers[k] = 0.0
         self.work_seconds = 0.0
+
+    def customs(self):
+        return [r for r in (self.cfg.get("custom_reminders") or []) if isinstance(r, dict)]
+
+    def custom_left(self, rem):
+        """Seconds until a custom reminder fires (None when it is off)."""
+        if not rem.get("on", True):
+            return None
+        total = int(rem.get("every", 60)) * 60
+        return max(0, total - self.custom_timers.get(rem.get("id"), 0.0))
+
+    def snooze_custom(self, rid, minutes):
+        for rem in self.customs():
+            if rem.get("id") == rid:
+                total = int(rem.get("every", 60)) * 60
+                self.custom_timers[rid] = max(0.0, total - minutes * 60)
+
+    def in_work_hours(self):
+        try:
+            h = datetime.now().hour
+            a = int(self.cfg.get("work_start_hour", 9)) % 24
+            b = int(self.cfg.get("work_end_hour", 18)) % 24
+            if a == b:
+                return True
+            if a < b:
+                return a <= h < b
+            return h >= a or h < b
+        except Exception:
+            return True
+
+    def overview(self):
+        """Live state of every reminder for the app: on/off, interval,
+        seconds until it fires, and today's count against the target."""
+        names = {"break": "Break", "eye": "Eye rest", "water": "Water",
+                 "stretch": "Stretch", "posture": "Posture", "hunger": "Snack",
+                 "meditate": "Breathing"}
+        counters = {"break": "breaks", "eye": "eye", "water": "water",
+                    "stretch": "stretch", "posture": "posture", "hunger": "hunger",
+                    "meditate": "breath"}
+        targets = {"break": "break_target", "eye": "eye_target", "water": "water_target",
+                   "stretch": "stretch_target", "posture": "posture_target"}
+        out = []
+        for key in self.ORDER:
+            on_key, every_key, _a, _i = self.CONF[key]
+            on = bool(self.cfg.get(on_key, True))
+            total = self.cfg.get(every_key, 30) * 60
+            spent = self.work_seconds if key == "break" else self.timers[key]
+            out.append({
+                "key": key, "name": names[key], "custom": False, "on": on,
+                "every": int(self.cfg.get(every_key, 30)),
+                "left": int(max(0, total - spent)) if on else None,
+                "today": self.app.stats.today(counters[key]),
+                "target": int(self.cfg.get(targets[key], 0)) if key in targets else None,
+                "msg": self.cfg.get(key + "_msg", ""),
+            })
+        for rem in self.customs():
+            rid = rem.get("id")
+            left = self.custom_left(rem)
+            out.append({
+                "key": rid, "name": rem.get("name", "Reminder"), "custom": True,
+                "on": bool(rem.get("on", True)), "every": int(rem.get("every", 60)),
+                "left": int(left) if left is not None else None,
+                "today": self.app.stats.today("custom_%s" % rid),
+                "streak": self.app.stats.streak_for("custom_%s" % rid),
+                "target": None, "msg": rem.get("msg", ""),
+            })
+        return out
 
     def snooze(self, key, minutes):
         """Ask again in exactly N minutes."""
@@ -4193,6 +4327,10 @@ class Reminders:
             left = max(0, total - spent)
             if best is None or left < best[1]:
                 best = (key, left)
+        for rem in self.customs():
+            left = self.custom_left(rem)
+            if left is not None and (best is None or left < best[1]):
+                best = (rem.get("name", "Reminder"), left)
         return best
 
     def in_quiet_hours(self):
@@ -4220,6 +4358,8 @@ class Reminders:
             return True
         if self.in_quiet_hours():
             return True
+        if self.cfg.get("work_hours_only", False) and not self.in_work_hours():
+            return True
         if self.cfg.get("skip_fullscreen", True) and WIN.foreground_is_fullscreen():
             return True
         if self.app.snooze_until and time.time() < self.app.snooze_until:
@@ -4246,6 +4386,9 @@ class Reminders:
                 self.session_seconds += dt
                 for k in self.timers:
                     self.timers[k] += dt
+                for rem in self.customs():
+                    rid = rem.get("id")
+                    self.custom_timers[rid] = self.custom_timers.get(rid, 0.0) + dt
 
             self._check_focus()
             if not self.blocked():
@@ -4290,6 +4433,25 @@ class Reminders:
                 self.work_seconds = 0.0
             safe(self.fire, key, accent, icon)
             return          # one at a time
+        for rem in self.customs():
+            left = self.custom_left(rem)
+            if left is None or left > 0:
+                continue
+            self.custom_timers[rem.get("id")] = 0.0
+            safe(self.fire_custom, rem)
+            return
+
+    def fire_custom(self, rem):
+        """A reminder the user defined in the app."""
+        app = self.app
+        rid = rem.get("id")
+        name = rem.get("name", "Reminder")
+        text = (rem.get("msg") or "").strip() or ("Time for: %s" % name)
+        buttons = [("Done", lambda: app.custom_done(rid)),
+                   ("10 more min", lambda: self.snooze_custom(rid, 10)),
+                   ("Skip", None)]
+        app.buddy.anim.set("wave", 2.0, after="idle")
+        app.show_card(name, text, buttons, accent=LAV, icon="bell", seconds=40)
 
     def fire(self, key, accent=None, icon=None):
         app = self.app
@@ -4362,6 +4524,9 @@ class Reminders:
                   "water": "Drink a glass of water", "stretch": "Stretch",
                   "posture": "Posture check", "hunger": "Snack time",
                   "meditate": "Breathe"}
+        custom_text = str(cfg.get(key + "_msg") or "").strip()
+        if custom_text:
+            text = custom_text          # the user's own words from the app
         app.show_card(title_extra or titles.get(key, "Reminder"), text, buttons,
                       accent=accent, icon=icon, seconds=40)
 
@@ -5547,6 +5712,17 @@ class App:
                         self.goal_toggle(payload.get("id", ""))
                     elif cmd == "exercise_done":
                         self.stats.bump("exercise")
+                    elif cmd == "log" and isinstance(payload, dict):
+                        if not self.log_done(str(payload.get("what", ""))):
+                            raise ValueError("Unknown log item")
+                    elif cmd == "rem_add" and isinstance(payload, dict):
+                        self.custom_add(payload)
+                    elif cmd == "rem_update" and isinstance(payload, dict):
+                        self.custom_update(payload)
+                    elif cmd == "rem_delete" and isinstance(payload, dict):
+                        self.custom_delete(str(payload.get("id") or ""))
+                    elif cmd == "rem_done" and isinstance(payload, dict):
+                        self.custom_done(str(payload.get("id") or ""))
                     elif cmd == "focus_start":
                         mins = None
                         if isinstance(payload, dict):
@@ -5592,7 +5768,8 @@ class App:
                             response["note"] = action_note
                     elif cmd in ("stats", "goals_get", "goals_add", "goals_delete",
                                 "goals_toggle", "exercise_done", "focus_start",
-                                "focus_stop", "break_start"):
+                                "focus_stop", "break_start", "log", "rem_add",
+                                "rem_update", "rem_delete", "rem_done"):
                         response = {"app": "DeskPal", "ok": True, "stats": self.stats_payload()}
                     else:
                         now = time.time()
@@ -5616,6 +5793,8 @@ class App:
                             "uptime_seconds": int(now - self.started),
                             "focus_kind": f.get("kind") if f else None,
                             "focus_left": int(max(0.0, f.get("end", now) - now)) if f else 0,
+                            "reminders": self.reminders.overview(),
+                            "work_hours": self.reminders.in_work_hours(),
                             "version": APP_VERSION,
                             "settings": settings_data
                         }
@@ -5720,6 +5899,8 @@ class App:
                     "name": g.get("name", "Goal"),
                     "done_today": self.stats.today(key) > 0,
                     "streak": self.stats.streak_for(key),
+                    "week": [1 if rec.get(key, 0) > 0 else 0
+                             for _label, rec in self.stats.last_days(7)],
                 })
             return out
         except Exception:
@@ -5765,7 +5946,8 @@ class App:
 
     # Keys the dashboard may read and write.  Position, goals and the
     # first-run flags stay private to the engine.
-    SETTINGS_PRIVATE = ("pos_x", "pos_y", "goals", "first_run", "onboarded")
+    SETTINGS_PRIVATE = ("pos_x", "pos_y", "goals", "first_run", "onboarded",
+                        "custom_reminders")
 
     def settings_payload(self):
         """Every user-facing setting, plus the facts the About page shows."""
@@ -5840,10 +6022,17 @@ class App:
                     "water": rec.get("water", 0),
                     "eye": rec.get("eye", 0),
                     "stretch": rec.get("stretch", 0),
+                    "posture": rec.get("posture", 0),
                     "exercise": rec.get("exercise", 0),
                     "focus": rec.get("focus", 0),
                     "breaks": rec.get("breaks", 0),
+                    "breath": rec.get("breath", 0),
+                    "active_min": rec.get("active_min", 0),
+                    "idle_min": rec.get("idle_min", 0),
                 })
+            targets = {k.replace("_target", ""): int(self.cfg.get(k, DEFAULTS[k]))
+                       for k in TARGET_LIMITS}
+            totals = self.stats.data.get("totals", {})
             f = self.focus
             focus_session = None
             if f:
@@ -5863,17 +6052,32 @@ class App:
                     "exercise": today_rec.get("exercise", 0),
                     "focus": today_rec.get("focus", 0),
                     "breaks": today_rec.get("breaks", 0),
+                    "posture": today_rec.get("posture", 0),
+                    "hunger": today_rec.get("hunger", 0),
+                    "breath": today_rec.get("breath", 0),
+                    "breath_min": today_rec.get("breath_min", 0),
+                    "pets": today_rec.get("pets", 0),
                     "hours": hours,
                 },
                 "history": history,
                 "streak": self.stats.streak(),
+                "streaks": {k: self.stats.streak_for(v) for k, v in
+                            (("water", "water"), ("eye", "eye"), ("stretch", "stretch"),
+                             ("posture", "posture"), ("focus", "focus"), ("breaks", "breaks"))},
+                "targets": targets,
+                "totals": {k: int(totals.get(k, 0)) for k in
+                           ("water", "eye", "stretch", "posture", "focus", "breaks",
+                            "exercise", "breath", "active_min", "pets")},
+                "days_tracked": len(self.stats.data.get("days", {})),
                 "focus_session": focus_session,
                 "goals": self.goals_list(),
+                "custom_reminders": self.custom_list(),
             }
         except Exception:
             log_exc("stats_payload")
             return {"today": {"hours": []}, "history": [], "streak": 0,
-                   "focus_session": None, "goals": []}
+                   "streaks": {}, "targets": {}, "totals": {}, "days_tracked": 0,
+                   "focus_session": None, "goals": [], "custom_reminders": []}
 
     # ------------------------------------------------------- outside events
     def _check_notify(self):
@@ -5999,9 +6203,7 @@ class App:
 
     def praise(self, what=None):
         try:
-            if what in ("water",):
-                self.stats.bump("water")
-            elif what in ("stretch", "posture", "eye"):
+            if what in ("water", "stretch", "posture", "eye", "hunger"):
                 self.stats.bump(what)
             if self.cfg.get("character") == "custom":
                 # a real blessing for finishing the exercise/reminder,
@@ -6023,6 +6225,89 @@ class App:
             self.buddy.say("okay, in %d minutes" % minutes, 2.4)
         except Exception:
             log_exc("snooze_key")
+
+    LOGGABLE = ("water", "eye", "stretch", "posture", "hunger")
+
+    def log_done(self, what):
+        """The user ticked something off in the app: count it, thank them,
+        and start that reminder's interval again from now."""
+        try:
+            if what not in self.LOGGABLE:
+                return False
+            self.praise(what)
+            self.reminders.reset(what)
+            return True
+        except Exception:
+            log_exc("log_done")
+            return False
+
+    # ------------------------------------------------------ custom reminders
+    def custom_list(self):
+        try:
+            out = []
+            for rem in self.reminders.customs():
+                rid = rem.get("id")
+                key = "custom_%s" % rid
+                left = self.reminders.custom_left(rem)
+                out.append({"id": rid, "name": rem.get("name"), "every": rem.get("every", 60),
+                            "on": bool(rem.get("on", True)), "msg": rem.get("msg", ""),
+                            "left": int(left) if left is not None else None,
+                            "today": self.stats.today(key),
+                            "streak": self.stats.streak_for(key)})
+            return out
+        except Exception:
+            log_exc("custom_list")
+            return []
+
+    def custom_add(self, payload):
+        try:
+            items = list(self.cfg.get("custom_reminders") or [])
+            if len(items) >= 12:
+                return
+            items.append({"id": uuid.uuid4().hex[:8], "name": payload.get("name", ""),
+                          "every": payload.get("every", 60), "on": True,
+                          "msg": payload.get("msg", "")})
+            self.cfg["custom_reminders"] = items
+            self.cfg.clamp()
+            self.cfg.save()
+        except Exception:
+            log_exc("custom_add")
+
+    def custom_update(self, payload):
+        try:
+            rid = str(payload.get("id") or "")
+            items = []
+            for rem in (self.cfg.get("custom_reminders") or []):
+                if rem.get("id") == rid:
+                    rem = dict(rem)
+                    for k in ("name", "every", "on", "msg"):
+                        if k in payload:
+                            rem[k] = payload[k]
+                items.append(rem)
+            self.cfg["custom_reminders"] = items
+            self.cfg.clamp()
+            self.cfg.save()
+        except Exception:
+            log_exc("custom_update")
+
+    def custom_delete(self, rid):
+        try:
+            self.cfg["custom_reminders"] = [r for r in (self.cfg.get("custom_reminders") or [])
+                                            if r.get("id") != rid]
+            self.reminders.custom_timers.pop(rid, None)
+            self.cfg.save()
+        except Exception:
+            log_exc("custom_delete")
+
+    def custom_done(self, rid):
+        try:
+            if not any(r.get("id") == rid for r in self.reminders.customs()):
+                return
+            self.stats.bump("custom_%s" % rid)
+            self.reminders.custom_timers[rid] = 0.0
+            self.praise(None)
+        except Exception:
+            log_exc("custom_done")
 
     def snooze_all(self, minutes):
         try:

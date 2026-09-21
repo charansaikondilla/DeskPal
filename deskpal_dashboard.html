@@ -5,34 +5,39 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>DeskPal</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%279%27 fill=%27%234f5bd5%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%276%27 fill=%27white%27/%3E%3C/svg%3E">
 <link rel="stylesheet" href="deskpal_dashboard.css">
 <script src="deskpal_dashboard.js" defer></script>
 </head>
-<body>
+<body data-view="today">
 
 <aside class="side">
-  <a href="#today" class="brand"><span class="brand-dot"></span>deskpal</a>
-  <nav class="nav" id="nav">
-    <a class="active" href="#today"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/></svg>Today</a>
-    <a href="#focus"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Focus</a>
-    <a href="#health"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></svg>Health</a>
-    <a href="#goals"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>Goals</a>
-    <a href="#companion"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4z"/><path d="M5 17l.9 2.1L8 20l-2.1.9L5 23l-.9-2.1L2 20l2.1-.9z"/></svg>Ganesh</a>
-    <a href="#settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</a>
+  <a href="#today" class="brand"><span class="brand-mark" aria-hidden="true"></span><span>DeskPal</span></a>
+  <nav class="nav" id="nav" aria-label="Pages">
+    <a class="active" href="#today" data-view="today"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/></svg><span>Today</span><kbd>1</kbd></a>
+    <a href="#focus" data-view="focus"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Focus</span><kbd>2</kbd></a>
+    <a href="#health" data-view="health"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></svg><span>Health</span><kbd>3</kbd></a>
+    <a href="#goals" data-view="goals"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg><span>Goals</span><kbd>4</kbd></a>
+    <a href="#companion" data-view="companion"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4z"/><path d="M5 17l.9 2.1L8 20l-2.1.9L5 23l-.9-2.1L2 20l2.1-.9z"/></svg><span>Ganesh</span><kbd>5</kbd></a>
+    <a href="#settings" data-view="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Settings</span><kbd>6</kbd></a>
   </nav>
   <div class="side-foot">
+    <div class="presence-mini" id="presenceMini">
+      <div class="presence-mini-avatar" id="presenceMiniAvatar"></div>
+      <div class="presence-mini-text"><b id="presenceMiniState">Offline</b><small id="presenceMiniFoot">Launch Ganesh</small></div>
+    </div>
     <div class="live-pill" id="livePill"><span class="dot"></span><span id="liveText">Connecting…</span></div>
-    <p class="version">DeskPal · v<span id="sideVersion">1.2</span></p>
+    <p class="version">DeskPal · v<span id="sideVersion">1.3</span></p>
   </div>
 </aside>
 
 <main class="main">
 
   <header class="top">
-    <div>
+    <div class="top-text">
       <p class="eyebrow" id="dateLine">Today</p>
       <h1 id="greeting">Good day.</h1>
-      <p class="sub">Live focus, movement and reminders — everything DeskPal tracks for you, in one place.</p>
+      <p class="sub" id="pageSub">Live focus, movement and reminders — everything DeskPal tracks for you, in one place.</p>
       <div class="live-strip" id="liveStrip" aria-live="polite">
         <span class="live-item" id="lsState"><i class="ls-dot"></i><span>Connecting to DeskPal…</span></span>
         <span class="live-item" id="lsNext" hidden></span>
@@ -41,54 +46,98 @@
       </div>
     </div>
     <div class="top-actions">
-      <button class="btn ghost" id="themeToggle" title="Toggle light / dark"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg></button>
+      <button class="btn ghost icon" id="themeToggle" title="Toggle light / dark" aria-label="Toggle light or dark theme"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg></button>
       <button class="btn primary" id="launch">Launch Ganesh</button>
     </div>
   </header>
 
   <!-- ─── TODAY ─────────────────────────────────────────────── -->
-  <section id="today" class="section">
+  <section id="today" class="view active" data-view="today">
     <div class="tiles">
-      <article class="tile">
-        <span class="tile-label">Active time today</span>
+      <article class="tile" data-goto="today">
+        <div class="tile-top"><span class="tile-label">Active time</span><span class="tile-icon t1"><svg viewBox="0 0 24 24"><path d="M4 14a8 8 0 1 1 16 0"/><path d="M12 14l3-4"/><path d="M2 20h20"/></svg></span></div>
         <b class="tile-value" id="tActive">0m</b>
-        <small class="tile-foot" id="tActiveFoot">of 0m at the desk</small>
+        <div class="bar"><i id="tActiveBar" style="--p:0"></i></div>
+        <small class="tile-foot" id="tActiveFoot">of your daily goal</small>
       </article>
-      <article class="tile">
-        <span class="tile-label">Focus sessions</span>
+      <article class="tile" data-goto="focus">
+        <div class="tile-top"><span class="tile-label">Focus sessions</span><span class="tile-icon t2"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span></div>
         <b class="tile-value" id="tFocus">0</b>
+        <div class="bar"><i id="tFocusBar" style="--p:0"></i></div>
         <small class="tile-foot" id="tFocusFoot">completed today</small>
       </article>
-      <article class="tile">
-        <span class="tile-label">Break streak</span>
-        <b class="tile-value" id="tStreak">0</b>
-        <small class="tile-foot">days in a row</small>
+      <article class="tile" data-goto="health">
+        <div class="tile-top"><span class="tile-label">Health check-ins</span><span class="tile-icon t3"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></svg></span></div>
+        <b class="tile-value" id="tHealth">0</b>
+        <div class="bar"><i id="tHealthBar" style="--p:0"></i></div>
+        <small class="tile-foot" id="tHealthFoot">water · eyes · stretch · posture</small>
       </article>
-      <article class="tile">
-        <span class="tile-label">Next reminder</span>
+      <article class="tile" data-goto="health">
+        <div class="tile-top"><span class="tile-label">Next reminder</span><span class="tile-icon t4"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></svg></span></div>
         <b class="tile-value tile-value-sm" id="tNext">—</b>
+        <div class="bar"><i id="tNextBar" style="--p:0"></i></div>
         <small class="tile-foot" id="tNextFoot">waiting for DeskPal</small>
       </article>
     </div>
 
-    <article class="panel">
-      <div class="panel-head">
-        <div>
-          <p class="eyebrow">ACTIVITY · TODAY</p>
-          <h2>Active vs idle, hour by hour</h2>
+    <div class="grid-21">
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">ACTIVITY · TODAY</p>
+            <h2>Active vs idle, hour by hour</h2>
+          </div>
+          <div class="legend" id="activityLegend">
+            <span><i style="--c:var(--s1)"></i>Active</span>
+            <span><i style="--c:var(--s2)"></i>Idle</span>
+          </div>
         </div>
-        <div class="legend" id="activityLegend">
-          <span><i style="--c:var(--s1)"></i>Active</span>
-          <span><i style="--c:var(--s2)"></i>Idle</span>
+        <div class="chart" id="activityChart" role="img" aria-label="Active versus idle minutes per hour today"></div>
+        <div class="chart-foot">Minutes per hour. Idle means no keyboard or mouse input for 60 seconds.</div>
+      </article>
+
+      <article class="panel rings-panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">HEALTH RINGS</p>
+            <h2>Closing today's rings</h2>
+          </div>
         </div>
-      </div>
-      <div class="chart" id="activityChart" role="img" aria-label="Active versus idle minutes per hour today"></div>
-      <div class="chart-foot" id="activityFoot">Minutes per hour. Idle means no keyboard or mouse input for 60 seconds.</div>
-    </article>
+        <div class="rings-wrap">
+          <div class="rings" id="rings" role="img" aria-label="Progress towards today's water, eye rest, stretch and posture targets"></div>
+          <div class="rings-legend" id="ringsLegend"></div>
+        </div>
+        <p class="hint" id="ringsHint">Targets live on the Health page — set them to match your day.</p>
+      </article>
+    </div>
+
+    <div class="grid-2">
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">THIS WEEK</p>
+            <h2>Active minutes per day</h2>
+          </div>
+          <span class="status-chip" id="weekChip"></span>
+        </div>
+        <div class="chart chart-sm" id="weekChart" role="img" aria-label="Active minutes per day, last seven days"></div>
+        <div class="chart-foot">Real keyboard and mouse activity while DeskPal was running.</div>
+      </article>
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">TODAY'S LOG</p>
+            <h2>What DeskPal counted</h2>
+          </div>
+        </div>
+        <div class="log-grid" id="todayLog"></div>
+        <p class="hint" id="allTimeLine"></p>
+      </article>
+    </div>
   </section>
 
   <!-- ─── FOCUS ─────────────────────────────────────────────── -->
-  <section id="focus" class="section">
+  <section id="focus" class="view" data-view="focus">
     <div class="grid-2">
       <article class="panel focus-panel">
         <div class="panel-head">
@@ -108,6 +157,11 @@
             <small id="ringLabel">ready</small>
           </div>
         </div>
+        <div class="presets" id="focusPresets">
+          <button class="preset" data-focus="25" data-break="5"><b>25 / 5</b><small>Classic Pomodoro</small></button>
+          <button class="preset" data-focus="50" data-break="10"><b>50 / 10</b><small>Deep work</small></button>
+          <button class="preset" data-focus="90" data-break="20"><b>90 / 20</b><small>Ultradian</small></button>
+        </div>
         <div class="focus-controls">
           <label class="field">Minutes
             <input id="focusMinutes" type="number" min="5" max="120" step="5" value="25">
@@ -119,39 +173,103 @@
         <p class="hint" id="focusHint">Ganesh goes quiet while you focus and celebrates when the timer ends.</p>
       </article>
 
-      <article class="panel">
-        <div class="panel-head">
-          <div>
-            <p class="eyebrow">LAST 7 DAYS</p>
-            <h2>Focus sessions completed</h2>
+      <div class="stack">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">FOCUS STATS</p>
+              <h2>How your focus is going</h2>
+            </div>
           </div>
-        </div>
-        <div class="chart chart-sm" id="focusChart" role="img" aria-label="Focus sessions completed per day, last seven days"></div>
-        <div class="chart-foot">Each bar is one day. A session counts when the timer runs to the end.</div>
-      </article>
+          <div class="stat-row" id="focusStats"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">LAST 7 DAYS</p>
+              <h2>Focus sessions completed</h2>
+            </div>
+          </div>
+          <div class="chart chart-sm" id="focusChart" role="img" aria-label="Focus sessions completed per day, last seven days"></div>
+          <div class="chart-foot">Each bar is one day. A session counts when the timer runs to the end.</div>
+        </article>
+      </div>
     </div>
   </section>
 
   <!-- ─── HEALTH ────────────────────────────────────────────── -->
-  <section id="health" class="section">
-    <article class="panel">
-      <div class="panel-head">
-        <div>
-          <p class="eyebrow">HEALTH · LAST 7 DAYS</p>
-          <h2>Reminders & exercises completed</h2>
-        </div>
-        <div class="legend">
-          <span><i style="--c:var(--s1)"></i>Water</span>
-          <span><i style="--c:var(--s2)"></i>Eye rest</span>
-          <span><i style="--c:var(--s3)"></i>Stretch</span>
-          <span><i style="--c:var(--s4)"></i>Exercise</span>
-        </div>
+  <section id="health" class="view" data-view="health">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">HEALTH · YOUR WAY</p>
+        <h2>Every reminder, tuned to you</h2>
+        <p class="sub">Switch each one on or off, choose how often, set a daily target, and write what Ganesh says. Changes go live on the desktop instantly.</p>
       </div>
-      <div class="chart" id="healthChart" role="img" aria-label="Water, eye rest, stretch and exercise completions per day, last seven days"></div>
-      <div class="chart-foot">Counted when you tap “Done” on a reminder card or mark an exercise complete.</div>
-    </article>
+      <span class="status-chip" id="healthStatus"></span>
+    </div>
+
+    <div class="health-grid" id="reminderCards"></div>
 
     <div class="grid-2">
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">YOUR OWN REMINDERS</p>
+            <h2>Anything else you want nudged about</h2>
+          </div>
+          <span class="status-chip" id="customStatus"></span>
+        </div>
+        <form class="custom-form" id="customForm">
+          <input id="customName" maxlength="40" placeholder="e.g. Medication, check posture at the standing desk, call mum" required>
+          <div class="custom-form-row">
+            <label class="field">Every
+              <select id="customEvery">
+                <option value="15">15 min</option><option value="30">30 min</option><option value="45">45 min</option>
+                <option value="60" selected>1 hour</option><option value="90">1.5 hours</option><option value="120">2 hours</option>
+                <option value="180">3 hours</option><option value="240">4 hours</option><option value="360">6 hours</option>
+              </select>
+            </label>
+            <label class="field grow">What Ganesh says (optional)
+              <input id="customMsg" maxlength="140" placeholder="Time for your tablet — with a glass of water.">
+            </label>
+            <button class="btn primary" type="submit">Add reminder</button>
+          </div>
+        </form>
+        <div id="customList" class="list"></div>
+        <p class="hint">Custom reminders count only active desk time, pause while you are away, and respect quiet hours like every other reminder.</p>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">SCHEDULE</p>
+            <h2>When DeskPal may interrupt</h2>
+          </div>
+          <span class="status-chip" id="scheduleStatus"></span>
+        </div>
+        <div class="srows" id="scheduleRows"></div>
+      </article>
+    </div>
+
+    <div class="grid-2">
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">LAST 7 DAYS</p>
+            <h2>Check-ins completed</h2>
+          </div>
+          <div class="legend">
+            <span><i style="--c:var(--s1)"></i>Water</span>
+            <span><i style="--c:var(--s2)"></i>Eye rest</span>
+            <span><i style="--c:var(--s3)"></i>Stretch</span>
+            <span><i style="--c:var(--s5)"></i>Posture</span>
+            <span><i style="--c:var(--s4)"></i>Exercise</span>
+          </div>
+        </div>
+        <div class="chart" id="healthChart" role="img" aria-label="Water, eye rest, stretch, posture and exercise completions per day, last seven days"></div>
+        <div class="chart-foot">Counted when you tap “Done” on a reminder card on the desktop, or log one here.</div>
+      </article>
+
       <article class="panel">
         <div class="panel-head">
           <div>
@@ -161,34 +279,17 @@
           <button class="btn ghost sm" id="addExercise">+ Add</button>
         </div>
         <div id="exerciseList" class="list"></div>
-      </article>
-
-      <article class="panel">
-        <div class="panel-head">
-          <div>
-            <p class="eyebrow">REMINDERS</p>
-            <h2>Healthy rhythm</h2>
-          </div>
-          <span class="status-chip" id="reminderStatus">Synced</span>
-        </div>
-        <div class="rows">
-          <label class="row"><span>Water</span><select data-reminder="Water"><option value="30">Every 30 min</option><option value="45">Every 45 min</option><option value="60" selected>Every 60 min</option><option value="90">Every 90 min</option></select></label>
-          <label class="row"><span>Eye rest</span><select data-reminder="Eye rest"><option value="20" selected>Every 20 min</option><option value="30">Every 30 min</option><option value="45">Every 45 min</option><option value="60">Every 60 min</option></select></label>
-          <label class="row"><span>Stretch</span><select data-reminder="Stretch"><option value="45">Every 45 min</option><option value="60">Every 60 min</option><option value="90" selected>Every 90 min</option><option value="120">Every 120 min</option></select></label>
-          <label class="row"><span>Posture</span><select data-reminder="Posture"><option value="20">Every 20 min</option><option value="30" selected>Every 30 min</option><option value="45">Every 45 min</option><option value="60">Every 60 min</option></select></label>
-          <label class="row"><span>Break</span><select data-reminder="Break"><option value="30">Every 30 min</option><option value="45" selected>Every 45 min</option><option value="60">Every 60 min</option><option value="90">Every 90 min</option></select></label>
-        </div>
-        <div class="today-counts" id="todayCounts"></div>
+        <p class="hint">Tick an exercise when you have done it — it counts in the chart and in Ganesh's blessings.</p>
       </article>
     </div>
   </section>
 
   <!-- ─── GOALS ─────────────────────────────────────────────── -->
-  <section id="goals" class="section">
+  <section id="goals" class="view" data-view="goals">
     <article class="panel">
       <div class="panel-head">
         <div>
-          <p class="eyebrow">CUSTOM GOALS</p>
+          <p class="eyebrow">DAILY GOALS</p>
           <h2>Things you want to do every day</h2>
         </div>
         <span class="status-chip" id="goalStatus"></span>
@@ -198,12 +299,12 @@
         <button class="btn primary" type="submit">Add goal</button>
       </form>
       <div id="goalList" class="list"></div>
-      <p class="hint">Goals are saved with DeskPal and count towards a streak every day you tick them.</p>
+      <p class="hint">Goals are saved with DeskPal and build a streak every day you tick them. The dots show the last seven days.</p>
     </article>
   </section>
 
   <!-- ─── COMPANION ─────────────────────────────────────────── -->
-  <section id="companion" class="section">
+  <section id="companion" class="view" data-view="companion">
     <div class="grid-2">
       <article class="panel">
         <div class="panel-head">
@@ -268,21 +369,43 @@
   </section>
 
   <!-- ─── SETTINGS ──────────────────────────────────────────── -->
-  <section id="settings" class="section">
+  <section id="settings" class="view" data-view="settings">
     <div class="section-head">
       <div>
         <p class="eyebrow">SETTINGS</p>
         <h2>Everything DeskPal does, tuned to you</h2>
       </div>
+      <div class="search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="settingsSearch" type="search" placeholder="Search settings…" aria-label="Search settings">
+      </div>
       <span class="status-chip" id="settingsStatus"></span>
     </div>
+
+    <article class="panel">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow">APPEARANCE</p>
+          <h2>Make the app yours</h2>
+        </div>
+      </div>
+      <div class="srows">
+        <div class="srow"><label>Theme<small>Follows Windows by default</small></label>
+          <div class="sctl"><div class="seg" id="themeSeg" role="radiogroup"><button type="button" data-value="system">System</button><button type="button" data-value="light">Light</button><button type="button" data-value="dark">Dark</button></div></div>
+        </div>
+        <div class="srow"><label>Accent colour<small>Used for buttons, rings and charts</small></label>
+          <div class="sctl"><div class="swatches" id="accentSwatches" role="radiogroup"></div></div>
+        </div>
+      </div>
+    </article>
+
     <div class="grid-2" id="settingsGrid"></div>
 
     <article class="panel">
       <div class="panel-head">
         <div>
           <p class="eyebrow">ABOUT</p>
-          <h2>DeskPal <span id="aboutVersion">1.2</span></h2>
+          <h2>DeskPal <span id="aboutVersion">1.3</span></h2>
         </div>
         <span class="status-chip" id="aboutStatus"></span>
       </div>

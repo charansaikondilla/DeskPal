@@ -257,6 +257,29 @@ class Handler(SimpleHTTPRequestHandler):
             if self.path == "/api/exercise_done":
                 res = desktop("exercise_done")
                 return self.send_json(200, res.get("stats", {}))
+            if self.path == "/api/log":
+                body = self.read_body()
+                what = str(body.get("what", ""))
+                if what not in ("water", "eye", "stretch", "posture", "hunger"):
+                    return self.send_error(400)
+                res = desktop(f"log:{json.dumps({'what': what})}")
+                return self.send_json(200, res.get("stats", {}))
+            if self.path == "/api/reminders":
+                body = self.read_body()
+                action = body.get("action")
+                if action == "add":
+                    res = desktop(f"rem_add:{json.dumps({'name': str(body.get('name', ''))[:40], 'every': body.get('every', 60), 'msg': str(body.get('msg', ''))[:140]})}")
+                elif action == "update":
+                    fields = {k: body[k] for k in ("name", "every", "on", "msg") if k in body}
+                    fields["id"] = str(body.get("id", ""))
+                    res = desktop(f"rem_update:{json.dumps(fields)}")
+                elif action == "delete":
+                    res = desktop(f"rem_delete:{json.dumps({'id': str(body.get('id', ''))})}")
+                elif action == "done":
+                    res = desktop(f"rem_done:{json.dumps({'id': str(body.get('id', ''))})}")
+                else:
+                    return self.send_error(400)
+                return self.send_json(200, res.get("stats", {}))
             if self.path == "/api/focus":
                 body = self.read_body()
                 action = body.get("action")

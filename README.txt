@@ -73,6 +73,31 @@
 
 
 ---------------------------------------------------------------------------
+  WHAT'S NEW IN 1.3  -  health, your way
+---------------------------------------------------------------------------
+
+  * A redesigned app: six pages (Today, Focus, Health, Goals, Ganesh,
+    Settings), a cleaner layout, light and dark themes, six accent
+    colours, keyboard shortcuts 1-6, and a live Ganesh in the sidebar.
+  * Health page: one card per reminder (break, eye rest, water, stretch,
+    posture, snack, breathing). Each card shows a live countdown, today's
+    count against your daily target, and lets you set the interval, the
+    target, and the exact words Ganesh says on the desktop card.
+  * Log check-ins from the app ("Drank a glass", "Stretched", ...) - they
+    count towards the rings and restart that reminder's timer.
+  * Your own reminders: name, interval and message. Ganesh fires them on
+    the desktop with Done / 10 more min / Skip, and keeps a streak.
+  * Daily targets and health rings on the Today page, plus active minutes
+    per day for the week and an "all time" line.
+  * Schedule: "only remind me during work hours", quiet hours, idle pause
+    and full-screen detection, all on the Health page.
+  * Goals show the last seven days as dots. Focus page has 25/5, 50/10
+    and 90/20 presets that are saved as your defaults, and focus stats.
+  * Settings search box.
+  * Fixed: clicking a switch's knob did nothing (only its text label
+    worked). Every switch is now a real label.
+
+---------------------------------------------------------------------------
   WHAT'S NEW IN 1.2  -  real-time app window
 ---------------------------------------------------------------------------
 

@@ -28,6 +28,31 @@ function h(tag, cls, text) {
   return node;
 }
 function series(n) { return getComputedStyle(document.documentElement).getPropertyValue('--s' + n).trim(); }
+// Catmull-Rom -> cubic Bezier: a gentle natural curve through real data
+// points (never invents values between them, just how the line travels).
+function smoothPath(pts) {
+  if (pts.length < 2) return '';
+  if (pts.length === 2) return 'M' + pts[0][0] + ',' + pts[0][1] + 'L' + pts[1][0] + ',' + pts[1][1];
+  let d = 'M' + pts[0][0] + ',' + pts[0][1];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += 'C' + c1x + ',' + c1y + ' ' + c2x + ',' + c2y + ' ' + p2[0] + ',' + p2[1];
+  }
+  return d;
+}
+let gradCounter = 0;
+function addGradient(svg, color) {
+  const id = 'grad' + (gradCounter++);
+  let defs = svg.querySelector('defs');
+  if (!defs) { defs = el('defs', {}); svg.insertBefore(defs, svg.firstChild); }
+  const grad = el('linearGradient', { id, x1: '0', y1: '0', x2: '0', y2: '1' });
+  grad.appendChild(el('stop', { offset: '0%', 'stop-color': color, 'stop-opacity': '0.32' }));
+  grad.appendChild(el('stop', { offset: '100%', 'stop-color': color, 'stop-opacity': '0.02' }));
+  defs.appendChild(grad);
+  return 'url(#' + id + ')';
+}
 function fmtMin(m) {
   m = Math.max(0, Math.round(m));
   if (m < 60) return m + 'm';
@@ -170,9 +195,10 @@ function hideTip() { tooltip.hidden = true; }
 // ─── chart: active vs idle line/area ─────────────────────────────────────
 function drawActivity(container, hours) {
   container.innerHTML = '';
+  container.classList.remove('skeleton');
   const W = container.clientWidth || 800, H = container.clientHeight || 240;
   if (!container.clientWidth) return;                       // page not visible
-  const pad = { l: 34, r: 12, t: 12, b: 26 };
+  const pad = { l: 34, r: 12, t: 20, b: 26 };
   const svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H });
   const x = (hh) => pad.l + (hh / 23) * (W - pad.l - pad.r);
   const y = (m) => pad.t + (1 - Math.min(60, m) / 60) * (H - pad.t - pad.b);
@@ -193,15 +219,23 @@ function drawActivity(container, hours) {
   }
 
   const build = (key, color) => {
-    const pts = data.map((d) => x(d.h) + ',' + y(d[key] || 0));
+    const raw = data.map((d) => [x(d.h), y(d[key] || 0)]);
     const last = data[data.length - 1];
-    svg.appendChild(el('polygon', { class: 'area', fill: color,
-      points: pts.join(' ') + ' ' + x(last.h) + ',' + y(0) + ' ' + x(data[0].h) + ',' + y(0) }));
-    svg.appendChild(el('polyline', { class: 'line', stroke: color, points: pts.join(' ') }));
-    if (data.length === 1) svg.appendChild(el('circle', { class: 'marker', cx: x(last.h), cy: y(last[key] || 0), r: 4, fill: color }));
+    if (raw.length === 1) { svg.appendChild(el('circle', { class: 'marker', cx: raw[0][0], cy: raw[0][1], r: 4, fill: color })); return; }
+    const linePath = smoothPath(raw);
+    const areaPath = linePath + 'L' + x(last.h) + ',' + y(0) + 'L' + x(data[0].h) + ',' + y(0) + 'Z';
+    svg.appendChild(el('path', { class: 'area', d: areaPath, fill: addGradient(svg, color) }));
+    svg.appendChild(el('path', { class: 'line', d: linePath, stroke: color }));
   };
   build('idle', series(2));
   build('active', series(1));
+
+  // "now" — this chart only ever shows today, so the last hour is the present
+  const nowX = x(data[data.length - 1].h);
+  const nowLine = el('line', { class: 'crosshair', x1: nowX, x2: nowX, y1: pad.t, y2: H - pad.b, opacity: '0.5' });
+  const nowLabel = el('text', { x: nowX, y: pad.t - 2, 'text-anchor': 'middle', class: 'now-label' }, 'now');
+  svg.appendChild(nowLine);
+  if (nowX < W - pad.r - 14) svg.appendChild(nowLabel);   // don't clip off the right edge
 
   const cross = el('line', { class: 'crosshair', y1: pad.t, y2: H - pad.b, x1: 0, x2: 0, visibility: 'hidden' });
   const dotA = el('circle', { class: 'marker', r: 4.5, fill: series(1), visibility: 'hidden' });
@@ -230,10 +264,11 @@ function drawActivity(container, hours) {
 // ─── chart: grouped bars ─────────────────────────────────────────────────
 function drawBars(container, days, keys, colors, names, opts) {
   container.innerHTML = '';
+  container.classList.remove('skeleton');
   const W = container.clientWidth || 800, H = container.clientHeight || 220;
   if (!container.clientWidth) return;
   opts = opts || {};
-  const pad = { l: 34, r: 8, t: 12, b: 26 };
+  const pad = { l: 34, r: 8, t: 22, b: 26 };
   const svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H });
   const max = Math.max(opts.min || 4, ...days.flatMap((d) => keys.map((k) => d[k] || 0)));
   const step = max <= 8 ? 2 : max <= 20 ? 5 : max <= 60 ? 10 : max <= 240 ? 60 : 120;
@@ -245,7 +280,17 @@ function drawBars(container, days, keys, colors, names, opts) {
     svg.appendChild(el('text', { x: pad.l - 8, y: y(v) + 4, 'text-anchor': 'end' }, fmt(v)));
   }
   if (opts.target && opts.target <= top) {   // only when it fits on the scale
-    svg.appendChild(el('line', { class: 'today-bar', x1: pad.l, x2: W - pad.r, y1: y(Math.min(top, opts.target)), y2: y(Math.min(top, opts.target)), 'stroke-dasharray': '4 4' }));
+    const ty = y(Math.min(top, opts.target));
+    svg.appendChild(el('line', { class: 'today-bar', x1: pad.l, x2: W - pad.r, y1: ty, y2: ty, 'stroke-dasharray': '4 4' }));
+    svg.appendChild(el('text', { class: 'ref-label', x: W - pad.r, y: ty - 4, 'text-anchor': 'end' }, 'goal'));
+  }
+  if (opts.avg) {
+    const primary = days.reduce((n, d) => n + (d[keys[0]] || 0), 0) / days.length;
+    if (primary > 0 && primary <= top) {
+      const ay = y(primary);
+      svg.appendChild(el('line', { class: 'avg-line', x1: pad.l, x2: W - pad.r, y1: ay, y2: ay, 'stroke-dasharray': '1.5 3.5' }));
+      svg.appendChild(el('text', { class: 'ref-label muted', x: pad.l + 2, y: ay - 4 }, 'avg ' + fmt(Math.round(primary))));
+    }
   }
   const groupW = (W - pad.l - pad.r) / days.length;
   const inner = groupW * 0.68;
@@ -265,7 +310,11 @@ function drawBars(container, days, keys, colors, names, opts) {
         bar.style.opacity = '0.8';
       });
       hit.addEventListener('mouseleave', () => { hideTip(); bar.style.opacity = ''; });
-      svg.appendChild(bar); svg.appendChild(hit);
+      svg.appendChild(bar);
+      if (opts.showLastValue && j === 0 && i === days.length - 1 && v > 0) {
+        svg.appendChild(el('text', { class: 'bar-value', x: bx + (barW - 2) / 2, y: y(v) - 6, 'text-anchor': 'middle' }, fmt(v)));
+      }
+      svg.appendChild(hit);
     });
   });
   container.appendChild(svg);
@@ -278,6 +327,7 @@ const RING_ITEMS = [
 ];
 function drawRings() {
   const box = $('#rings'), legend = $('#ringsLegend');
+  box.classList.remove('skeleton');
   const t = (stats && stats.today) || {}, targets = (stats && stats.targets) || {};
   box.innerHTML = ''; legend.innerHTML = '';
   const size = 168, stroke = 13, gap = 4;
@@ -308,25 +358,112 @@ function drawRings() {
 }
 
 // ─── tiles (Today) ───────────────────────────────────────────────────────
+
+// ─── weekly heatmap: when you are actually at the desk (Today) ───────────
+function renderHeatmap() {
+  const grid = $('#heatmapGrid');
+  if (!grid) return;
+  grid.classList.remove('skeleton');
+  const data = (stats && stats.heatmap) || [];
+  grid.innerHTML = '';
+  const nowHour = new Date().getHours();
+  const max = Math.max(4, ...data.flatMap((d) => d.hours || []));
+  const hourRow = h('div', 'heatmap-hourrow');
+  hourRow.appendChild(h('span', 'heatmap-daylabel', ''));
+  const hourLabels = h('div', 'heatmap-hourlabels');
+  for (let hh = 0; hh < 24; hh++) hourLabels.appendChild(h('span', '', hh % 3 === 0 ? hourLabel(hh).replace(' ', '') : ''));
+  hourRow.appendChild(hourLabels);
+  grid.appendChild(hourRow);
+  let anyData = false;
+  data.forEach((day, di) => {
+    const row = h('div', 'heatmap-day-row');
+    row.appendChild(h('span', 'heatmap-daylabel', day.label));
+    const cells = h('div', 'heatmap-cells');
+    (day.hours || []).forEach((v, hh) => {
+      if (v > 0) anyData = true;
+      const isToday = di === data.length - 1 && hh === nowHour;
+      const cell = h('div', 'heatmap-cell' + (isToday ? ' today' : ''));
+      if (v > 0) { cell.style.background = 'var(--accent)'; cell.style.opacity = (0.14 + Math.min(1, v / max) * 0.86).toFixed(2); }
+      cell.addEventListener('mouseenter', () => {
+        const rect = cell.getBoundingClientRect();
+        showTip('<b>' + day.label + ' · ' + hourLabel(hh) + '</b><br>' + (v ? v + ' min active' : 'no activity'), rect.left + rect.width / 2, rect.top);
+      });
+      cell.addEventListener('mouseleave', hideTip);
+      cells.appendChild(cell);
+    });
+    row.appendChild(cells);
+    grid.appendChild(row);
+  });
+  const foot = $('#heatmapFoot');
+  if (foot) foot.textContent = anyData
+    ? 'Darker squares are the hours you are usually at the keyboard.'
+    : (desktopOnline ? 'Keep DeskPal running through the day and this fills in with your real rhythm.' : 'Launch Ganesh to start building this picture.');
+}
+
 function setBar(id, pct) {
   const bar = $(id); bar.style.setProperty('--p', Math.max(0, Math.min(1, pct)).toFixed(3)); bar.classList.toggle('done', pct >= 1);
 }
+
+// ─── sparklines & trend badges (tiles) ────────────────────────────────────
+function drawSparkline(container, values, color) {
+  container.innerHTML = '';
+  const nums = (values || []).map((v) => Number(v) || 0);
+  if (nums.length < 2 || Math.max(...nums) <= 0) { container.classList.add('empty'); return; }
+  container.classList.remove('empty');
+  const W = container.clientWidth || 140, H = container.clientHeight || 32;
+  if (!container.clientWidth) return;
+  const pad = 3;
+  const max = Math.max(1, ...nums);
+  const x = (i) => pad + (i / (nums.length - 1)) * (W - pad * 2);
+  const y = (v) => pad + (1 - v / max) * (H - pad * 2);
+  const pts = nums.map((v, i) => [x(i), y(v)]);
+  const svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H });
+  const linePath = smoothPath(pts);
+  const areaPath = linePath + 'L' + pts[pts.length - 1][0] + ',' + (H - pad) + 'L' + pts[0][0] + ',' + (H - pad) + 'Z';
+  svg.appendChild(el('path', { class: 'spark-area', d: areaPath, fill: addGradient(svg, color) }));
+  svg.appendChild(el('path', { class: 'spark-line', d: linePath, stroke: color }));
+  const last = pts[pts.length - 1];
+  svg.appendChild(el('circle', { class: 'spark-dot', cx: last[0], cy: last[1], r: 2.6, fill: color }));
+  container.appendChild(svg);
+}
+function renderTrend(sel, current, previous, label) {
+  const elm = $(sel);
+  if (!elm) return;
+  if (!previous || previous <= 0 || current == null) { elm.hidden = true; return; }
+  const diff = current - previous;
+  const pct = Math.round(Math.abs(diff) / previous * 100);
+  if (!pct) { elm.hidden = true; return; }
+  const dir = diff > 0 ? 'up' : 'down';
+  elm.hidden = false;
+  elm.className = 'trend ' + dir;
+  elm.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg><span>' + pct + '%</span>';
+  elm.title = (dir === 'up' ? '+' : '-') + pct + '% vs ' + (label || 'yesterday');
+}
+
 function renderTiles() {
   const t = (stats && stats.today) || {}, targets = (stats && stats.targets) || {};
+  const hist = (stats && stats.history) || [];
+  const yday = hist.length >= 2 ? hist[hist.length - 2] : null;
   const active = t.active_min || 0, idle = t.idle_min || 0;
   $('#tActive').textContent = fmtMin(active);
   const aT = targets.active || 0;
   setBar('#tActiveBar', aT ? active / aT : 0);
   $('#tActiveFoot').textContent = aT ? (active >= aT ? 'daily goal of ' + fmtMin(aT) + ' reached' : fmtMin(aT - active) + ' to your ' + fmtMin(aT) + ' goal')
     + (active + idle ? ' · ' + Math.round(active / (active + idle) * 100) + '% active' : '') : 'nothing recorded yet';
+  drawSparkline($('#tActiveSpark'), hist.map((d) => d.active_min), series(1));
+  renderTrend('#tActiveTrend', active, yday && yday.active_min);
   const focus = t.focus || 0, fT = targets.focus || 0;
   $('#tFocus').textContent = String(focus);
   setBar('#tFocusBar', fT ? focus / fT : 0);
   $('#tFocusFoot').textContent = (fT ? 'of ' + fT + ' planned · ' : '') + (t.breaks || 0) + (t.breaks === 1 ? ' break taken' : ' breaks taken');
+  drawSparkline($('#tFocusSpark'), hist.map((d) => d.focus), series(5));
+  renderTrend('#tFocusTrend', focus, yday && yday.focus);
   const hv = RING_ITEMS.reduce((n, it) => n + (t[it.key] || 0), 0), hT = RING_ITEMS.reduce((n, it) => n + (targets[it.key] || 0), 0);
   $('#tHealth').textContent = String(hv);
   setBar('#tHealthBar', hT ? hv / hT : 0);
   $('#tHealthFoot').textContent = hT ? 'of ' + hT + ' today · water, eyes, stretch, posture' : 'water · eyes · stretch · posture';
+  drawSparkline($('#tHealthSpark'), hist.map((d) => RING_ITEMS.reduce((n, it) => n + (d[it.key] || 0), 0)), series(3));
+  renderTrend('#tHealthTrend', hv, yday && RING_ITEMS.reduce((n, it) => n + (yday[it.key] || 0), 0));
   renderNextReminder();
   // today's log
   const log = $('#todayLog'); log.innerHTML = '';
@@ -1103,14 +1240,14 @@ function renderStatus() {
   renderLive(); renderNextReminder(); renderFocus(); renderGoals(); renderCustom(); renderPresence(); renderLiveStrip(); renderReminderLive();
 }
 function renderAll() {
-  renderTiles(); renderFocus(); renderFocusStats(); renderGoals(); renderCustom(); drawRings(); renderReminderCards();
+  renderTiles(); renderFocus(); renderFocusStats(); renderGoals(); renderCustom(); drawRings(); renderReminderCards(); renderHeatmap();
   const hist = (stats && stats.history) || [];
   const week = hist.length ? hist : emptyWeek();
   drawActivity($('#activityChart'), (stats && stats.today && stats.today.hours) || []);
-  drawBars($('#weekChart'), week, ['active_min'], [series(1)], ['Active'], { fmt: fmtMin, min: 60, target: stats && stats.targets ? stats.targets.active : 0 });
+  drawBars($('#weekChart'), week, ['active_min'], [series(1)], ['Active'], { fmt: fmtMin, min: 60, target: stats && stats.targets ? stats.targets.active : 0, avg: true, showLastValue: true });
   $('#weekChip').textContent = hist.length ? fmtMin(hist.reduce((n, d) => n + (d.active_min || 0), 0)) + ' this week' : '';
   drawBars($('#healthChart'), week, ['water', 'eye', 'stretch', 'posture', 'exercise'], [series(1), series(2), series(3), series(5), series(4)], ['Water', 'Eye rest', 'Stretch', 'Posture', 'Exercise']);
-  drawBars($('#focusChart'), week, ['focus'], [series(1)], ['Focus sessions'], { target: stats && stats.targets ? stats.targets.focus : 0 });
+  drawBars($('#focusChart'), week, ['focus'], [series(1)], ['Focus sessions'], { target: stats && stats.targets ? stats.targets.focus : 0, avg: true, showLastValue: true });
 }
 function emptyWeek() {
   const out = [];

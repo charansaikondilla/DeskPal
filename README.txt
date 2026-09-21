@@ -73,6 +73,25 @@
 
 
 ---------------------------------------------------------------------------
+  WHAT'S NEW IN 1.4  -  a properly detailed design pass
+---------------------------------------------------------------------------
+
+  * Smooth, gradient-filled charts everywhere instead of straight-line
+    segments - the activity chart now also marks "now" on today's curve.
+  * Weekly rhythm heatmap on the Today page: a real 7-day x 24-hour grid
+    (like a contribution graph) built from data DeskPal already recorded,
+    showing exactly which hours you are usually at the keyboard. Hover
+    any square for the day, hour and minutes.
+  * Sparklines: each Today tile now carries its own 7-day trend line.
+  * Trend badges ("+18%") next to Active time, Focus and Health check-ins,
+    comparing today with yesterday - only shown once there is a real
+    yesterday to compare against.
+  * Bar charts gained a dashed "avg" reference line alongside the "goal"
+    line, and today's own bar is labelled with its exact value.
+  * A light shimmer placeholder while a chart's first real data is still
+    loading, instead of a blank box.
+
+---------------------------------------------------------------------------
   WHAT'S NEW IN 1.3  -  health, your way
 ---------------------------------------------------------------------------
 

@@ -27,7 +27,7 @@
       <div class="presence-mini-text"><b id="presenceMiniState">Offline</b><small id="presenceMiniFoot">Launch Ganesh</small></div>
     </div>
     <div class="live-pill" id="livePill"><span class="dot"></span><span id="liveText">Connecting…</span></div>
-    <p class="version">DeskPal · v<span id="sideVersion">1.3</span></p>
+    <p class="version">DeskPal · v<span id="sideVersion">1.4</span></p>
   </div>
 </aside>
 
@@ -55,20 +55,23 @@
   <section id="today" class="view active" data-view="today">
     <div class="tiles">
       <article class="tile" data-goto="today">
-        <div class="tile-top"><span class="tile-label">Active time</span><span class="tile-icon t1"><svg viewBox="0 0 24 24"><path d="M4 14a8 8 0 1 1 16 0"/><path d="M12 14l3-4"/><path d="M2 20h20"/></svg></span></div>
+        <div class="tile-top"><span class="tile-label">Active time</span><span class="trend" id="tActiveTrend" hidden></span><span class="tile-icon t1"><svg viewBox="0 0 24 24"><path d="M4 14a8 8 0 1 1 16 0"/><path d="M12 14l3-4"/><path d="M2 20h20"/></svg></span></div>
         <b class="tile-value" id="tActive">0m</b>
+        <div class="tile-spark" id="tActiveSpark"></div>
         <div class="bar"><i id="tActiveBar" style="--p:0"></i></div>
         <small class="tile-foot" id="tActiveFoot">of your daily goal</small>
       </article>
       <article class="tile" data-goto="focus">
-        <div class="tile-top"><span class="tile-label">Focus sessions</span><span class="tile-icon t2"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span></div>
+        <div class="tile-top"><span class="tile-label">Focus sessions</span><span class="trend" id="tFocusTrend" hidden></span><span class="tile-icon t2"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span></div>
         <b class="tile-value" id="tFocus">0</b>
+        <div class="tile-spark" id="tFocusSpark"></div>
         <div class="bar"><i id="tFocusBar" style="--p:0"></i></div>
         <small class="tile-foot" id="tFocusFoot">completed today</small>
       </article>
       <article class="tile" data-goto="health">
-        <div class="tile-top"><span class="tile-label">Health check-ins</span><span class="tile-icon t3"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></svg></span></div>
+        <div class="tile-top"><span class="tile-label">Health check-ins</span><span class="trend" id="tHealthTrend" hidden></span><span class="tile-icon t3"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></svg></span></div>
         <b class="tile-value" id="tHealth">0</b>
+        <div class="tile-spark" id="tHealthSpark"></div>
         <div class="bar"><i id="tHealthBar" style="--p:0"></i></div>
         <small class="tile-foot" id="tHealthFoot">water · eyes · stretch · posture</small>
       </article>
@@ -92,7 +95,7 @@
             <span><i style="--c:var(--s2)"></i>Idle</span>
           </div>
         </div>
-        <div class="chart" id="activityChart" role="img" aria-label="Active versus idle minutes per hour today"></div>
+        <div class="chart skeleton" id="activityChart" role="img" aria-label="Active versus idle minutes per hour today"></div>
         <div class="chart-foot">Minutes per hour. Idle means no keyboard or mouse input for 60 seconds.</div>
       </article>
 
@@ -104,7 +107,7 @@
           </div>
         </div>
         <div class="rings-wrap">
-          <div class="rings" id="rings" role="img" aria-label="Progress towards today's water, eye rest, stretch and posture targets"></div>
+          <div class="rings skeleton" id="rings" role="img" aria-label="Progress towards today's water, eye rest, stretch and posture targets"></div>
           <div class="rings-legend" id="ringsLegend"></div>
         </div>
         <p class="hint" id="ringsHint">Targets live on the Health page — set them to match your day.</p>
@@ -120,7 +123,7 @@
           </div>
           <span class="status-chip" id="weekChip"></span>
         </div>
-        <div class="chart chart-sm" id="weekChart" role="img" aria-label="Active minutes per day, last seven days"></div>
+        <div class="chart chart-sm skeleton" id="weekChart" role="img" aria-label="Active minutes per day, last seven days"></div>
         <div class="chart-foot">Real keyboard and mouse activity while DeskPal was running.</div>
       </article>
       <article class="panel">
@@ -134,6 +137,24 @@
         <p class="hint" id="allTimeLine"></p>
       </article>
     </div>
+
+    <article class="panel">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow">WEEKLY RHYTHM</p>
+          <h2>When you are actually at the desk</h2>
+        </div>
+      </div>
+      <div class="heatmap-scroll">
+        <div class="heatmap-grid skeleton" id="heatmapGrid" role="img" aria-label="Active minutes by hour for each of the last seven days"></div>
+      </div>
+      <div class="heatmap-legend">
+        <span>Less</span>
+        <span class="scale"><i class="swatch" style="background:var(--surface-3)"></i><i class="swatch" style="background:var(--accent);opacity:.3"></i><i class="swatch" style="background:var(--accent);opacity:.6"></i><i class="swatch" style="background:var(--accent)"></i></span>
+        <span>More</span>
+      </div>
+      <p class="hint" id="heatmapFoot">Keep DeskPal running through the day and this fills in with your real rhythm.</p>
+    </article>
   </section>
 
   <!-- ─── FOCUS ─────────────────────────────────────────────── -->
@@ -405,7 +426,7 @@
       <div class="panel-head">
         <div>
           <p class="eyebrow">ABOUT</p>
-          <h2>DeskPal <span id="aboutVersion">1.3</span></h2>
+          <h2>DeskPal <span id="aboutVersion">1.4</span></h2>
         </div>
         <span class="status-chip" id="aboutStatus"></span>
       </div>

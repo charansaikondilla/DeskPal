@@ -232,8 +232,8 @@ input::placeholder { color: var(--muted); }
 }
 .tile { display: grid; gap: 6px; cursor: pointer; transition: transform .15s, box-shadow .15s, border-color .15s; }
 .tile:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); border-color: var(--ring-strong); }
-.tile-top { display: flex; justify-content: space-between; align-items: center; }
-.tile-label { font-size: 13px; color: var(--ink-2); font-weight: 560; }
+.tile-top { display: flex; align-items: center; gap: 8px; }
+.tile-label { flex: 1; min-width: 0; font-size: 13px; color: var(--ink-2); font-weight: 560; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tile-icon { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; }
 .tile-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .tile-icon.t1 { background: color-mix(in srgb, var(--s1) 14%, transparent); color: var(--s1); }
@@ -246,9 +246,23 @@ input::placeholder { color: var(--muted); }
 .bar { height: 6px; border-radius: 6px; background: var(--surface-3); overflow: hidden; margin: 4px 0 2px; }
 .bar i { display: block; height: 100%; width: calc(var(--p, 0) * 100%); background: var(--accent); border-radius: 6px; transition: width .6s cubic-bezier(.2,.8,.2,1); }
 .bar i.done { background: var(--good); }
+.trend { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 660; padding: 3px 7px 3px 6px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); white-space: nowrap; flex-shrink: 0; }
+.trend svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.trend.up { color: var(--good-text); background: color-mix(in srgb, var(--good) 13%, transparent); }
+.trend.down svg { transform: rotate(180deg); }
+.trend[hidden] { display: none; }
+.tile-spark { height: 32px; margin: 2px 0 8px; }
+.tile-spark svg { width: 100%; height: 100%; overflow: visible; display: block; }
+.tile-spark .spark-area { opacity: .16; }
+.tile-spark .spark-line { fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.tile-spark .spark-dot { }
+.tile-spark.empty { display: flex; align-items: center; }
+.tile-spark.empty::after { content: ""; display: block; width: 100%; height: 1px; background: var(--grid); border-top: 1px dashed var(--axis); }
 
 /* ─── panels & charts ─────────────────────────────────────── */
 .panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
+.panel-head .trend { margin-top: 2px; }
+.panel-head-text { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .panel-head .eyebrow { margin-bottom: 4px; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--ink-2); padding-top: 4px; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--c); margin-right: 6px; vertical-align: -1px; }
@@ -265,7 +279,17 @@ input::placeholder { color: var(--muted); }
 .chart .hit { fill: transparent; }
 .chart .crosshair { stroke: var(--axis); stroke-width: 1; stroke-dasharray: 3 3; }
 .chart .empty { fill: var(--muted); font-size: 13px; text-anchor: middle; }
+.chart .now-label { fill: var(--ink-2); font-size: 10px; font-weight: 650; }
+.chart.skeleton, .rings.skeleton, .heatmap-grid.skeleton {
+  border-radius: var(--radius-sm); background: linear-gradient(100deg, var(--surface-2) 30%, var(--surface-3) 45%, var(--surface-2) 60%);
+  background-size: 250% 100%; animation: shimmer 1.6s ease-in-out infinite;
+}
+@keyframes shimmer { 0% { background-position: 120% 0; } 100% { background-position: -20% 0; } }
 .chart .today-bar { stroke: var(--accent); stroke-width: 1.5; }
+.chart .avg-line { stroke: var(--axis); stroke-width: 1; }
+.chart .ref-label { fill: var(--ink-2); font-size: 10px; font-weight: 650; }
+.chart .ref-label.muted { fill: var(--muted); font-weight: 500; }
+.chart .bar-value { fill: var(--ink); font-size: 11px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .chart-foot { font-size: 12px; color: var(--muted); margin-top: 12px; }
 .status-chip { font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--surface-2); padding: 5px 10px; border-radius: 999px; white-space: nowrap; border: 1px solid var(--ring); }
 .status-chip.on { color: var(--good-text); background: color-mix(in srgb, var(--good) 12%, transparent); border-color: color-mix(in srgb, var(--good) 25%, transparent); }
@@ -415,6 +439,20 @@ menu { padding: 0; margin: 18px 0 0; display: flex; justify-content: flex-end; g
 .live-item.off .ls-dot { background: var(--bad); }
 @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 22%, transparent); } 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--good) 8%, transparent); } }
 
+/* ─── weekly heatmap (Today) ──────────────────────────────── */
+.heatmap-scroll { overflow-x: auto; padding-bottom: 2px; }
+.heatmap-grid { display: grid; gap: 4px; min-width: 640px; }
+.heatmap-hourrow, .heatmap-day-row { display: flex; align-items: center; gap: 10px; }
+.heatmap-daylabel { width: 34px; flex-shrink: 0; font-size: 11.5px; color: var(--ink-2); font-weight: 600; text-align: right; }
+.heatmap-cells, .heatmap-hourlabels { flex: 1; display: flex; gap: 3px; min-width: 0; }
+.heatmap-hourlabels span { flex: 1; font-size: 9.5px; color: var(--muted); text-align: left; min-width: 0; }
+.heatmap-cell { flex: 1; aspect-ratio: 1; border-radius: 4px; background: var(--surface-3); min-width: 9px; cursor: default; transition: transform .1s ease, box-shadow .1s ease; }
+.heatmap-cell:hover { transform: scale(1.3); box-shadow: 0 0 0 1.5px var(--surface) , 0 2px 6px rgba(0,0,0,.25); position: relative; z-index: 2; }
+.heatmap-cell.today { box-shadow: 0 0 0 1.5px var(--accent) inset; }
+.heatmap-legend { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); margin-top: 14px; }
+.heatmap-legend .swatch { width: 11px; height: 11px; border-radius: 3px; }
+.heatmap-legend .scale { display: flex; gap: 3px; }
+
 /* ─── companion ───────────────────────────────────────────── */
 .emote-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .emote-grid .btn { justify-content: center; padding: 9px 10px; font-size: 13px; }
@@ -487,6 +525,7 @@ menu { padding: 0; margin: 18px 0 0; display: flex; justify-content: flex-end; g
 @media (max-width: 960px) {
   .tiles { grid-template-columns: repeat(2, 1fr); }
   .grid-2, .health-grid { grid-template-columns: 1fr; }
+  .heatmap-daylabel { width: 28px; }
   .emote-grid { grid-template-columns: repeat(2, 1fr); }
   .stat-row { grid-template-columns: repeat(2, 1fr); }
 }

@@ -169,14 +169,28 @@ def main():
             page.wait_for_selector("#activityChart svg")
             page.wait_for_function("document.getElementById('sideVersion').textContent !== ''")
 
-            # 2a. Today: tiles, rings, week chart and log come from /api/stats
+            # 2a. Today: tiles, rings, week chart, heatmap and log come from /api/stats
             stats = page.request.get(URL + "/api/stats").json()
             assert "today" in stats and "history" in stats and len(stats["history"]) == 7, stats
             assert "targets" in stats and stats["targets"].get("water"), stats["targets"]
+            assert "heatmap" in stats and len(stats["heatmap"]) == 7 and len(stats["heatmap"][0]["hours"]) == 24, stats.get("heatmap")
             assert page.locator("#rings svg circle.fill").count() == 4
+            assert not page.locator("#rings").evaluate("e => e.classList.contains('skeleton')")
             assert page.locator("#weekChart svg").count() == 1
+            assert not page.locator("#weekChart").evaluate("e => e.classList.contains('skeleton')")
             assert page.locator("#todayLog div").count() >= 6
             assert page.locator("#tActive").text_content().strip() != ""
+            # weekly heatmap: a real 7x24 grid, bound to real per-hour history
+            page.wait_for_function("document.querySelectorAll('#heatmapGrid .heatmap-cell').length === 168")
+            assert not page.locator("#heatmapGrid").evaluate("e => e.classList.contains('skeleton')")
+            page.locator("#heatmapGrid .heatmap-cell").first.hover()
+            page.wait_for_selector("#tooltip:not([hidden])")
+            page.mouse.move(5, 5)
+            # sparklines: SVG trend line inside each tile that has 7-day history
+            assert page.locator("#tActiveSpark svg, #tActiveSpark.empty").count() == 1
+            assert page.locator("#tFocusSpark svg, #tFocusSpark.empty").count() == 1
+            assert page.locator("#tHealthSpark svg, #tHealthSpark.empty").count() == 1
+            print("heatmap, sparklines and skeleton-removal verified", flush=True)
             page.screenshot(path=str(output / "deskpal-today.png"))
 
             # 2b. Health page: reminder cards mirror the engine live

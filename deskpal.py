@@ -43,7 +43,7 @@ from tkinter import messagebox
 from tkinter import filedialog
 
 APP_NAME = "DeskPal"
-APP_VERSION = "1.3"
+APP_VERSION = "1.4"
 IS_WIN = sys.platform.startswith("win")
 IS_MAC = sys.platform == "darwin"
 
@@ -6033,6 +6033,9 @@ class App:
             targets = {k.replace("_target", ""): int(self.cfg.get(k, DEFAULTS[k]))
                        for k in TARGET_LIMITS}
             totals = self.stats.data.get("totals", {})
+            heatmap = [{"label": label,
+                       "hours": [rec.get("active_h%d" % h, 0) for h in range(24)]}
+                      for label, rec in self.stats.last_days(7)]
             f = self.focus
             focus_session = None
             if f:
@@ -6069,6 +6072,7 @@ class App:
                            ("water", "eye", "stretch", "posture", "focus", "breaks",
                             "exercise", "breath", "active_min", "pets")},
                 "days_tracked": len(self.stats.data.get("days", {})),
+                "heatmap": heatmap,
                 "focus_session": focus_session,
                 "goals": self.goals_list(),
                 "custom_reminders": self.custom_list(),
@@ -6077,7 +6081,7 @@ class App:
             log_exc("stats_payload")
             return {"today": {"hours": []}, "history": [], "streak": 0,
                    "streaks": {}, "targets": {}, "totals": {}, "days_tracked": 0,
-                   "focus_session": None, "goals": [], "custom_reminders": []}
+                   "heatmap": [], "focus_session": None, "goals": [], "custom_reminders": []}
 
     # ------------------------------------------------------- outside events
     def _check_notify(self):

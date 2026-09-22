@@ -1410,12 +1410,22 @@ let resizeTimer = null;
 window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderAll, 150); });
 
 // ─── boot ────────────────────────────────────────────────────────────────
+// When the engine can't be reached (dashboard opened without Ganesh running,
+// or viewed from somewhere that can never reach a loopback server, like a
+// hosted copy of this page) polling backs off instead of hammering the
+// network forever — it still speeds back up the moment the engine answers.
+function schedulePoll(fn, onlineMs, offlineMs) {
+  let timer = null;
+  async function tick() {
+    await fn();
+    timer = setTimeout(tick, desktopOnline ? onlineMs : offlineMs);
+  }
+  tick();
+  return () => clearTimeout(timer);
+}
 showView(location.hash ? location.hash.slice(1) : 'today', false);
 setTimeout(() => window.scrollTo(0, 0), 0);   // undo the browser's own #hash jump
-loadStatus();
-loadStats();
-loadSettings();
-setInterval(loadStatus, 1000);        // real-time: state, countdowns, idle
-setInterval(loadStats, 5000);
-setInterval(loadSettings, 10000);     // picks up changes made from the desktop menu
+schedulePoll(loadStatus, 1000, 15000);        // real-time: state, countdowns, idle
+schedulePoll(loadStats, 5000, 15000);
+schedulePoll(loadSettings, 10000, 20000);     // picks up changes made from the desktop menu
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { loadStatus(); loadStats(); loadSettings(); } });

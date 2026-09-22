@@ -262,7 +262,38 @@ class Handler(SimpleHTTPRequestHandler):
                 what = str(body.get("what", ""))
                 if what not in ("water", "eye", "stretch", "posture", "hunger"):
                     return self.send_error(400)
-                res = desktop(f"log:{json.dumps({'what': what})}")
+                res = desktop(f"log:{json.dumps({'what': what, 'undo': bool(body.get('undo'))})}")
+                return self.send_json(200, res.get("stats", {}))
+            if self.path == "/api/exercises":
+                body = self.read_body()
+                action = body.get("action")
+                if action == "add":
+                    res = desktop(f"ex_add:{json.dumps({'name': str(body.get('name', ''))[:40], 'minutes': body.get('minutes', 2)})}")
+                elif action == "update":
+                    fields = {k: body[k] for k in ("name", "minutes", "on") if k in body}
+                    fields["id"] = str(body.get("id", ""))
+                    res = desktop(f"ex_update:{json.dumps(fields)}")
+                elif action == "delete":
+                    res = desktop(f"ex_delete:{json.dumps({'id': str(body.get('id', ''))})}")
+                elif action == "done":
+                    res = desktop(f"ex_done:{json.dumps({'id': str(body.get('id', ''))})}")
+                else:
+                    return self.send_error(400)
+                return self.send_json(200, res.get("stats", {}))
+            if self.path == "/api/timetable":
+                body = self.read_body()
+                action = body.get("action")
+                if action == "add":
+                    fields = {k: body[k] for k in ("day", "start_h", "start_m", "end_h", "end_m", "label", "kind") if k in body}
+                    res = desktop(f"tt_add:{json.dumps(fields)}")
+                elif action == "update":
+                    fields = {k: body[k] for k in ("day", "start_h", "start_m", "end_h", "end_m", "label", "kind") if k in body}
+                    fields["id"] = str(body.get("id", ""))
+                    res = desktop(f"tt_update:{json.dumps(fields)}")
+                elif action == "delete":
+                    res = desktop(f"tt_delete:{json.dumps({'id': str(body.get('id', ''))})}")
+                else:
+                    return self.send_error(400)
                 return self.send_json(200, res.get("stats", {}))
             if self.path == "/api/reminders":
                 body = self.read_body()
@@ -286,6 +317,9 @@ class Handler(SimpleHTTPRequestHandler):
                 if action == "start":
                     minutes = body.get("minutes", 25)
                     res = desktop(f"focus_start:{json.dumps({'minutes': minutes})}")
+                elif action == "study":
+                    minutes = body.get("minutes", 45)
+                    res = desktop(f"study_start:{json.dumps({'minutes': minutes})}")
                 elif action == "stop":
                     res = desktop("focus_stop")
                 elif action == "break":

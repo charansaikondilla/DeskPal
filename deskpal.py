@@ -43,7 +43,7 @@ from tkinter import messagebox
 from tkinter import filedialog
 
 APP_NAME = "DeskPal"
-APP_VERSION = "1.4"
+APP_VERSION = "1.5"
 IS_WIN = sys.platform.startswith("win")
 IS_MAC = sys.platform == "darwin"
 
@@ -512,13 +512,44 @@ DEFAULTS = {
 
     # user-defined reminders (list of {id, name, every, on, msg}) ---------
     "custom_reminders": [],
+
+    # which eye exercise the "eye rest" reminder walks you through --------
+    "eye_exercise": "look_away",
+
+    # water ------------------------------------------------------------
+    "water_glass_ml": 250,         # so "glasses" can also read as ml
+
+    # study sessions (separate from focus sessions, own stats/streak) -----
+    "study_len": 45,
+    "study_target": 2,             # sessions/day
+
+    # exercises you track (list of {id, name, minutes, on}) ---------------
+    "exercises": [],
+
+    # weekly timetable (list of {id, day, start_h, start_m, end_h, end_m,
+    # label, kind}); day is 0=Mon .. 6=Sun, kind is study|class|work|other -
+    "timetable": [],
+}
+
+EYE_EXERCISES = {
+    "look_away": {"name": "20-20-20 look away", "seconds": 20,
+                 "say": "look at something 20 feet away... i'll count"},
+    "rolling":   {"name": "Eye rolling", "seconds": 20,
+                 "say": "slowly roll your eyes in a circle... both ways"},
+    "palming":   {"name": "Palming", "seconds": 30,
+                 "say": "cup your warm palms gently over closed eyes"},
+    "near_far":  {"name": "Near-far focus", "seconds": 30,
+                 "say": "focus on your thumb up close, then something far"},
+    "blink":     {"name": "Blink exercise", "seconds": 20,
+                 "say": "blink slowly and fully, ten times"},
 }
 
 TARGET_LIMITS = {
     "water_target": (1, 30), "eye_target": (1, 40), "stretch_target": (1, 30),
     "posture_target": (1, 40), "break_target": (1, 30), "focus_target": (1, 20),
-    "active_target": (30, 900),
+    "active_target": (30, 900), "study_target": (1, 12),
 }
+NEW_RANGE_LIMITS = {"study_len": (5, 240), "water_glass_ml": (50, 1000)}
 REMINDER_MSG_KEYS = ("break_msg", "eye_msg", "water_msg", "stretch_msg",
                      "posture_msg", "hunger_msg", "meditate_msg")
 
@@ -593,9 +624,18 @@ class Config(dict):
                     self[key] = max(lo, min(hi, int(self.get(key, DEFAULTS[key]))))
                 except Exception:
                     self[key] = DEFAULTS[key]
+            for key, (lo, hi) in NEW_RANGE_LIMITS.items():
+                try:
+                    self[key] = max(lo, min(hi, int(self.get(key, DEFAULTS[key]))))
+                except Exception:
+                    self[key] = DEFAULTS[key]
             for key in REMINDER_MSG_KEYS:
                 self[key] = str(self.get(key) or "").strip()[:140]
             self["custom_reminders"] = self._clean_custom(self.get("custom_reminders"))
+            self["exercises"] = self._clean_exercises(self.get("exercises"))
+            self["timetable"] = self._clean_timetable(self.get("timetable"))
+            if self.get("eye_exercise") not in EYE_EXERCISES:
+                self["eye_exercise"] = "look_away"
             if self.get("character") not in ("dog", "cat", "human", "custom"):
                 self["character"] = "dog"
             if self.get("breath_pattern") not in ("box", "478", "calm"):
@@ -626,6 +666,60 @@ class Config(dict):
                         "on": bool(it.get("on", True)),
                         "msg": str(it.get("msg") or "").strip()[:140]})
             if len(out) >= 12:
+                break
+        return out
+
+    @staticmethod
+    def _clean_exercises(items):
+        """Tracked exercises: at most 20, every entry well-formed."""
+        out = []
+        seen = set()
+        for it in (items or []) if isinstance(items, list) else []:
+            if not isinstance(it, dict):
+                continue
+            eid = str(it.get("id") or "").strip()[:12]
+            name = str(it.get("name") or "").strip()[:40]
+            if not eid or not name or eid in seen:
+                continue
+            seen.add(eid)
+            try:
+                minutes = max(1, min(120, int(it.get("minutes", 2))))
+            except Exception:
+                minutes = 2
+            out.append({"id": eid, "name": name, "minutes": minutes,
+                        "on": bool(it.get("on", True))})
+            if len(out) >= 20:
+                break
+        return out
+
+    @staticmethod
+    def _clean_timetable(items):
+        """Weekly timetable blocks: at most 40, every entry well-formed."""
+        out = []
+        seen = set()
+        kinds = ("study", "class", "work", "break", "other")
+        for it in (items or []) if isinstance(items, list) else []:
+            if not isinstance(it, dict):
+                continue
+            tid = str(it.get("id") or "").strip()[:12]
+            label = str(it.get("label") or "").strip()[:40]
+            if not tid or not label or tid in seen:
+                continue
+            try:
+                day = max(0, min(6, int(it.get("day", 0))))
+                sh = max(0, min(23, int(it.get("start_h", 9))))
+                sm = max(0, min(59, int(it.get("start_m", 0))))
+                eh = max(0, min(23, int(it.get("end_h", 10))))
+                em = max(0, min(59, int(it.get("end_m", 0))))
+            except Exception:
+                continue
+            if eh * 60 + em <= sh * 60 + sm:
+                continue        # end must be after start - same-day blocks only
+            seen.add(tid)
+            kind = it.get("kind") if it.get("kind") in kinds else "other"
+            out.append({"id": tid, "day": day, "start_h": sh, "start_m": sm,
+                        "end_h": eh, "end_m": em, "label": label, "kind": kind})
+            if len(out) >= 40:
                 break
         return out
 
@@ -5713,8 +5807,25 @@ class App:
                     elif cmd == "exercise_done":
                         self.stats.bump("exercise")
                     elif cmd == "log" and isinstance(payload, dict):
-                        if not self.log_done(str(payload.get("what", ""))):
+                        what = str(payload.get("what", ""))
+                        ok = (self.log_undo(what) if payload.get("undo")
+                             else self.log_done(what))
+                        if not ok:
                             raise ValueError("Unknown log item")
+                    elif cmd == "ex_add" and isinstance(payload, dict):
+                        self.exercise_add(payload)
+                    elif cmd == "ex_update" and isinstance(payload, dict):
+                        self.exercise_update(payload)
+                    elif cmd == "ex_delete" and isinstance(payload, dict):
+                        self.exercise_delete(str(payload.get("id") or ""))
+                    elif cmd == "ex_done" and isinstance(payload, dict):
+                        self.exercise_done(str(payload.get("id") or ""))
+                    elif cmd == "tt_add" and isinstance(payload, dict):
+                        self.timetable_add(payload)
+                    elif cmd == "tt_update" and isinstance(payload, dict):
+                        self.timetable_update(payload)
+                    elif cmd == "tt_delete" and isinstance(payload, dict):
+                        self.timetable_delete(str(payload.get("id") or ""))
                     elif cmd == "rem_add" and isinstance(payload, dict):
                         self.custom_add(payload)
                     elif cmd == "rem_update" and isinstance(payload, dict):
@@ -5732,6 +5843,15 @@ class App:
                                 mins = None
                         self.stop_modak_scene()
                         self.start_focus(mins)
+                    elif cmd == "study_start":
+                        mins = None
+                        if isinstance(payload, dict):
+                            try:
+                                mins = max(5, min(240, int(payload.get("minutes", 0))))
+                            except (TypeError, ValueError):
+                                mins = None
+                        self.stop_modak_scene()
+                        self.start_study(mins)
                     elif cmd == "focus_stop":
                         self.stop_focus(by_click=True)
                     elif cmd == "break_start":
@@ -5769,7 +5889,9 @@ class App:
                     elif cmd in ("stats", "goals_get", "goals_add", "goals_delete",
                                 "goals_toggle", "exercise_done", "focus_start",
                                 "focus_stop", "break_start", "log", "rem_add",
-                                "rem_update", "rem_delete", "rem_done"):
+                                "rem_update", "rem_delete", "rem_done", "study_start",
+                                "ex_add", "ex_update", "ex_delete", "ex_done",
+                                "tt_add", "tt_update", "tt_delete"):
                         response = {"app": "DeskPal", "ok": True, "stats": self.stats_payload()}
                     else:
                         now = time.time()
@@ -5947,7 +6069,7 @@ class App:
     # Keys the dashboard may read and write.  Position, goals and the
     # first-run flags stay private to the engine.
     SETTINGS_PRIVATE = ("pos_x", "pos_y", "goals", "first_run", "onboarded",
-                        "custom_reminders")
+                        "custom_reminders", "exercises", "timetable")
 
     def settings_payload(self):
         """Every user-facing setting, plus the facts the About page shows."""
@@ -6029,6 +6151,7 @@ class App:
                     "breath": rec.get("breath", 0),
                     "active_min": rec.get("active_min", 0),
                     "idle_min": rec.get("idle_min", 0),
+                    "study": rec.get("study", 0),
                 })
             targets = {k.replace("_target", ""): int(self.cfg.get(k, DEFAULTS[k]))
                        for k in TARGET_LIMITS}
@@ -6036,6 +6159,8 @@ class App:
             heatmap = [{"label": label,
                        "hours": [rec.get("active_h%d" % h, 0) for h in range(24)]}
                       for label, rec in self.stats.last_days(7)]
+            glass_ml = int(self.cfg.get("water_glass_ml", 250))
+            water_hours = [today_rec.get("water_h%d" % h, 0) for h in range(24)]
             f = self.focus
             focus_session = None
             if f:
@@ -6060,28 +6185,35 @@ class App:
                     "breath": today_rec.get("breath", 0),
                     "breath_min": today_rec.get("breath_min", 0),
                     "pets": today_rec.get("pets", 0),
+                    "study": today_rec.get("study", 0),
+                    "water_ml": today_rec.get("water", 0) * glass_ml,
+                    "water_hours": water_hours,
                     "hours": hours,
                 },
                 "history": history,
                 "streak": self.stats.streak(),
                 "streaks": {k: self.stats.streak_for(v) for k, v in
                             (("water", "water"), ("eye", "eye"), ("stretch", "stretch"),
-                             ("posture", "posture"), ("focus", "focus"), ("breaks", "breaks"))},
+                             ("posture", "posture"), ("focus", "focus"), ("breaks", "breaks"),
+                             ("study", "study"))},
                 "targets": targets,
                 "totals": {k: int(totals.get(k, 0)) for k in
                            ("water", "eye", "stretch", "posture", "focus", "breaks",
-                            "exercise", "breath", "active_min", "pets")},
+                            "exercise", "breath", "active_min", "pets", "study")},
                 "days_tracked": len(self.stats.data.get("days", {})),
                 "heatmap": heatmap,
                 "focus_session": focus_session,
                 "goals": self.goals_list(),
                 "custom_reminders": self.custom_list(),
+                "exercises": self.exercise_list(),
+                "timetable": self.timetable_list(),
             }
         except Exception:
             log_exc("stats_payload")
-            return {"today": {"hours": []}, "history": [], "streak": 0,
+            return {"today": {"hours": [], "water_hours": [0] * 24}, "history": [], "streak": 0,
                    "streaks": {}, "targets": {}, "totals": {}, "days_tracked": 0,
-                   "heatmap": [], "focus_session": None, "goals": [], "custom_reminders": []}
+                   "heatmap": [], "focus_session": None, "goals": [], "custom_reminders": [],
+                   "exercises": [], "timetable": []}
 
     # ------------------------------------------------------- outside events
     def _check_notify(self):
@@ -6209,6 +6341,8 @@ class App:
         try:
             if what in ("water", "stretch", "posture", "eye", "hunger"):
                 self.stats.bump(what)
+                if what == "water":
+                    self.stats.bump("water_h%d" % datetime.now().hour)
             if self.cfg.get("character") == "custom":
                 # a real blessing for finishing the exercise/reminder,
                 # not just a generic happy bounce
@@ -6243,6 +6377,31 @@ class App:
             return True
         except Exception:
             log_exc("log_done")
+            return False
+
+    def log_undo(self, what):
+        """Correct a misclick: take one off today's count for `what`
+        without touching the reminder timer (same safe-decrement shape
+        goal_toggle already uses for its own counters)."""
+        try:
+            if what not in self.LOGGABLE:
+                return False
+            key = what
+            day = self.stats.data.setdefault("days", {}).setdefault(Stats.today_key(), {})
+            if day.get(key, 0) <= 0:
+                return True             # nothing to undo - not an error
+            day[key] -= 1
+            tot = self.stats.data.setdefault("totals", {})
+            tot[key] = max(0, tot.get(key, 0) - 1)
+            if what == "water":
+                hkey = "water_h%d" % datetime.now().hour
+                if day.get(hkey, 0) > 0:
+                    day[hkey] -= 1
+                    tot[hkey] = max(0, tot.get(hkey, 0) - 1)
+            self.stats.save()
+            return True
+        except Exception:
+            log_exc("log_undo")
             return False
 
     # ------------------------------------------------------ custom reminders
@@ -6313,6 +6472,123 @@ class App:
         except Exception:
             log_exc("custom_done")
 
+    # ---------------------------------------------------------- exercises
+    def exercise_list(self):
+        try:
+            out = []
+            today = Stats.today_key()
+            for ex in (self.cfg.get("exercises") or []):
+                eid = ex.get("id")
+                key = "ex_%s" % eid
+                out.append({"id": eid, "name": ex.get("name", "Exercise"),
+                            "minutes": ex.get("minutes", 2), "on": bool(ex.get("on", True)),
+                            "done_today": self.stats.today(key) > 0,
+                            "today": self.stats.today(key),
+                            "streak": self.stats.streak_for(key),
+                            "week": [1 if rec.get(key, 0) > 0 else 0
+                                     for _label, rec in self.stats.last_days(7)]})
+            del today
+            return out
+        except Exception:
+            log_exc("exercise_list")
+            return []
+
+    def exercise_add(self, payload):
+        try:
+            items = list(self.cfg.get("exercises") or [])
+            if len(items) >= 20:
+                return
+            items.append({"id": uuid.uuid4().hex[:8], "name": payload.get("name", ""),
+                          "minutes": payload.get("minutes", 2), "on": True})
+            self.cfg["exercises"] = items
+            self.cfg.clamp()
+            self.cfg.save()
+        except Exception:
+            log_exc("exercise_add")
+
+    def exercise_update(self, payload):
+        try:
+            eid = str(payload.get("id") or "")
+            items = []
+            for ex in (self.cfg.get("exercises") or []):
+                if ex.get("id") == eid:
+                    ex = dict(ex)
+                    for k in ("name", "minutes", "on"):
+                        if k in payload:
+                            ex[k] = payload[k]
+                items.append(ex)
+            self.cfg["exercises"] = items
+            self.cfg.clamp()
+            self.cfg.save()
+        except Exception:
+            log_exc("exercise_update")
+
+    def exercise_delete(self, eid):
+        try:
+            self.cfg["exercises"] = [e for e in (self.cfg.get("exercises") or [])
+                                     if e.get("id") != eid]
+            self.cfg.save()
+        except Exception:
+            log_exc("exercise_delete")
+
+    def exercise_done(self, eid):
+        try:
+            if not any(e.get("id") == eid for e in (self.cfg.get("exercises") or [])):
+                return
+            self.stats.bump("ex_%s" % eid)
+            self.stats.bump("exercise")            # keeps the existing aggregate tile/chart fed
+            self.praise(None)
+        except Exception:
+            log_exc("exercise_done")
+
+    # ---------------------------------------------------------- timetable
+    def timetable_list(self):
+        try:
+            return list(self.cfg.get("timetable") or [])
+        except Exception:
+            log_exc("timetable_list")
+            return []
+
+    def timetable_add(self, payload):
+        try:
+            items = list(self.cfg.get("timetable") or [])
+            if len(items) >= 40:
+                return
+            items.append({"id": uuid.uuid4().hex[:8], "day": payload.get("day", 0),
+                          "start_h": payload.get("start_h", 9), "start_m": payload.get("start_m", 0),
+                          "end_h": payload.get("end_h", 10), "end_m": payload.get("end_m", 0),
+                          "label": payload.get("label", ""), "kind": payload.get("kind", "other")})
+            self.cfg["timetable"] = items
+            self.cfg.clamp()
+            self.cfg.save()
+        except Exception:
+            log_exc("timetable_add")
+
+    def timetable_update(self, payload):
+        try:
+            tid = str(payload.get("id") or "")
+            items = []
+            for blk in (self.cfg.get("timetable") or []):
+                if blk.get("id") == tid:
+                    blk = dict(blk)
+                    for k in ("day", "start_h", "start_m", "end_h", "end_m", "label", "kind"):
+                        if k in payload:
+                            blk[k] = payload[k]
+                items.append(blk)
+            self.cfg["timetable"] = items
+            self.cfg.clamp()
+            self.cfg.save()
+        except Exception:
+            log_exc("timetable_update")
+
+    def timetable_delete(self, tid):
+        try:
+            self.cfg["timetable"] = [b for b in (self.cfg.get("timetable") or [])
+                                     if b.get("id") != tid]
+            self.cfg.save()
+        except Exception:
+            log_exc("timetable_delete")
+
     def snooze_all(self, minutes):
         try:
             self.snooze_until = time.time() + minutes * 60
@@ -6358,11 +6634,24 @@ class App:
 
     def start_eye_rest(self):
         try:
-            self._start_session("eye", 20.0 / 60.0)
+            ex = EYE_EXERCISES.get(self.cfg.get("eye_exercise", "look_away"),
+                                   EYE_EXERCISES["look_away"])
+            self._start_session("eye", ex["seconds"] / 60.0, label=ex["name"])
             self.buddy.anim.set("look", 3.0, after="idle")
-            self.buddy.say("look far away... i'll count", 4.0)
+            self.buddy.say(ex["say"], 4.0)
         except Exception:
             log_exc("start_eye_rest")
+
+    def start_study(self, minutes=None):
+        try:
+            mins = int(minutes or self.cfg.get("study_len", 45))
+            self._start_session("study", mins)
+            self.buddy.anim.set("think", 2.4, after="sit")
+            self.buddy.say("study time! %d minutes. i'll keep quiet" % mins, 4.0)
+            if self.cfg.get("sounds"):
+                play_chime("up")
+        except Exception:
+            log_exc("start_study")
 
     def stop_focus(self, by_click=False):
         try:
@@ -6398,6 +6687,20 @@ class App:
                                 ("One more round", self.start_focus),
                                 ("Done for now", None)],
                                accent=PINK, icon="star", seconds=60)
+            elif kind == "study":
+                self.stats.bump("study")
+                self.buddy.anim.set("bless_cycle" if is_ganesh else "celebrate",
+                                    2.6 if is_ganesh else 3.0, after="idle")
+                self.buddy.fx.burst_ring("confetti", 0, 70, 14)
+                if self.cfg.get("sounds"):
+                    play_chime("happy")
+                self.show_card("Study session done",
+                               "That was %d minutes of study. Take a short break "
+                               "before the next one." % int(f.get("total", 2700) / 60),
+                               [("Break now", self.start_break),
+                                ("One more round", self.start_study),
+                                ("Done for now", None)],
+                               accent=LAV, icon="star", seconds=60)
             elif kind == "break":
                 self.reminders.reset_all()
                 self.buddy.anim.set("bless_cycle" if is_ganesh else "happy",

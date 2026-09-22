@@ -27,7 +27,7 @@
       <div class="presence-mini-text"><b id="presenceMiniState">Offline</b><small id="presenceMiniFoot">Launch Ganesh</small></div>
     </div>
     <div class="live-pill" id="livePill"><span class="dot"></span><span id="liveText">Connecting…</span></div>
-    <p class="version">DeskPal · v<span id="sideVersion">1.4</span></p>
+    <p class="version">DeskPal · v<span id="sideVersion">1.5</span></p>
   </div>
 </aside>
 
@@ -188,6 +188,7 @@
             <input id="focusMinutes" type="number" min="5" max="120" step="5" value="25">
           </label>
           <button class="btn primary" id="focusStart">Start focus</button>
+          <button class="btn soft" id="studyStart">Start study session</button>
           <button class="btn ghost" id="focusStop" disabled>Stop</button>
           <button class="btn ghost" id="breakStart">Take a break</button>
         </div>
@@ -216,6 +217,47 @@
         </article>
       </div>
     </div>
+
+    <article class="panel">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow">YOUR TIMETABLE</p>
+          <h2>What's on, and when</h2>
+          <p class="sub">Add your classes, work blocks or study sessions once — DeskPal shows what's now and what's next, right here.</p>
+        </div>
+        <span class="status-chip" id="timetableStatus"></span>
+      </div>
+      <div class="tt-now" id="ttNow"></div>
+      <form class="tt-form" id="ttForm">
+        <div class="tt-form-row">
+          <label class="field">Day
+            <select id="ttDay">
+              <option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option>
+              <option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option>
+              <option value="6">Sunday</option>
+            </select>
+          </label>
+          <label class="field">Starts
+            <input id="ttStart" type="time" value="09:00" required>
+          </label>
+          <label class="field">Ends
+            <input id="ttEnd" type="time" value="10:00" required>
+          </label>
+          <label class="field">Kind
+            <select id="ttKind">
+              <option value="study">Study</option><option value="class">Class</option>
+              <option value="work">Work</option><option value="break">Break</option><option value="other">Other</option>
+            </select>
+          </label>
+          <label class="field grow">Label
+            <input id="ttLabel" maxlength="40" placeholder="e.g. Physics revision" required>
+          </label>
+          <button class="btn primary" type="submit">Add block</button>
+        </div>
+      </form>
+      <div id="ttList" class="tt-week"></div>
+      <p class="hint">Study blocks can start a tracked study session in one click. Times use your computer's clock.</p>
+    </article>
   </section>
 
   <!-- ─── HEALTH ────────────────────────────────────────────── -->
@@ -300,7 +342,7 @@
           <button class="btn ghost sm" id="addExercise">+ Add</button>
         </div>
         <div id="exerciseList" class="list"></div>
-        <p class="hint">Tick an exercise when you have done it — it counts in the chart and in Ganesh's blessings.</p>
+        <p class="hint">Tick an exercise when you have done it — it builds a streak, counts in the chart, and in Ganesh's blessings.</p>
       </article>
     </div>
   </section>
@@ -426,7 +468,7 @@
       <div class="panel-head">
         <div>
           <p class="eyebrow">ABOUT</p>
-          <h2>DeskPal <span id="aboutVersion">1.4</span></h2>
+          <h2>DeskPal <span id="aboutVersion">1.5</span></h2>
         </div>
         <span class="status-chip" id="aboutStatus"></span>
       </div>

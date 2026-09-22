@@ -1,6 +1,7 @@
 """Exercise the local launch page and dashboard against the real desktop application."""
 import json
 import os
+from datetime import datetime, timedelta
 from pathlib import Path
 import socket
 import subprocess
@@ -240,6 +241,63 @@ def main():
             wait_setting("work_hours_only", bool(full["work_hours_only"]))
             print("health page: intervals, targets, messages, switches, logging and schedule verified", flush=True)
 
+            # 2b-2. Water: glass size, hourly timeline, undo a misclick
+            page.locator("#h-water_glass_ml").fill("300")
+            wait_setting("water_glass_ml", 300)
+            before = page.request.get(URL + "/api/stats").json()["today"]
+            page.locator('[data-log="water"]').click()
+            page.wait_for_function("document.querySelector('[data-reminder=water] .count b').textContent === %s" % json.dumps(str(before["water"] + 1)))
+            after = page.request.get(URL + "/api/stats").json()["today"]
+            assert after["water_ml"] == after["water"] * 300, after
+            assert page.locator("[data-reminder=water] .water-timeline i.on").count() >= 1
+            page.locator('[data-reminder="water"] .rcard-undo').click()
+            page.wait_for_function("document.querySelector('[data-reminder=water] .count b').textContent === %s" % json.dumps(str(before["water"])))
+            assert page.request.get(URL + "/api/stats").json()["today"]["water"] == before["water"]
+            page.locator("#h-water_glass_ml").fill(str(full["water_glass_ml"]))
+            wait_setting("water_glass_ml", full["water_glass_ml"])
+            print("water: glass size, hourly timeline and undo verified", flush=True)
+
+            # 2b-3. Eye exercise: choosing one changes the engine's timing/wording
+            page.select_option("#h-eye_exercise", "palming")
+            wait_setting("eye_exercise", "palming")
+            page.select_option("#h-eye_exercise", "look_away")
+            wait_setting("eye_exercise", "look_away")
+            print("eye exercise picker verified", flush=True)
+
+            # 2b-4. Exercises: engine-owned, with streaks and a 7-day history
+            for ex in page.request.get(URL + "/api/stats").json()["exercises"]:
+                if ex["name"].startswith("Verify exercise"):
+                    page.request.post(URL + "/api/exercises", data=json.dumps({"action": "delete", "id": ex["id"]}), headers=api_headers)
+            ex_name = "Verify exercise %d" % int(time.time())
+            ex_row = page.locator("#exerciseList .item", has_text=ex_name)
+            page.click("#addExercise")
+            page.fill("#name", ex_name)
+            page.fill("#minutes", "4")
+            page.click("#save")
+            ex_row.wait_for()
+            ex = [x for x in page.request.get(URL + "/api/stats").json()["exercises"] if x["name"] == ex_name]
+            assert ex and ex[0]["minutes"] == 4 and len(ex[0]["week"]) == 7, ex
+            eid = ex[0]["id"]
+            ex_row.locator("input.mini").fill("7")
+            page.wait_for_timeout(300)
+            deadline = time.time() + 6
+            got = []
+            while time.time() < deadline:
+                got = [x for x in page.request.get(URL + "/api/stats").json()["exercises"] if x["id"] == eid]
+                if got and got[0]["minutes"] == 7:
+                    break
+                time.sleep(0.2)
+            assert got and got[0]["minutes"] == 7, got
+            ex_row.locator("button", has_text="Mark done").click()
+            page.wait_for_function("document.querySelector('#exerciseList .item.done') !== null")
+            ex = [x for x in page.request.get(URL + "/api/stats").json()["exercises"] if x["id"] == eid][0]
+            assert ex["done_today"] and ex["streak"] == 1 and ex["week"][-1] == 1, ex
+            assert ex_row.locator(".week-dots i.on").count() >= 1
+            ex_row.locator(".btn.del").click()
+            ex_row.wait_for(state="detached")
+            assert not any(x["id"] == eid for x in page.request.get(URL + "/api/stats").json()["exercises"])
+            print("exercises: add, edit minutes, mark done (streak), delete verified", flush=True)
+
             # 2c. Custom reminders round-trip through the engine
             for r in page.request.get(URL + "/api/stats").json()["custom_reminders"]:
                 if r["name"].startswith("Verify reminder"):
@@ -306,6 +364,56 @@ def main():
             wait_setting("focus_len", old_focus)
             assert page.locator("#focusStats div").count() >= 4
             assert page.locator("#focusChart svg").count() == 1
+
+            # 2e-2. Study session: a separate tracked kind, not counted as focus
+            focus_before = page.request.get(URL + "/api/stats").json()["today"]["focus"]
+            study_before = page.request.get(URL + "/api/stats").json()["today"]["study"]
+            page.click("#studyStart")
+            page.wait_for_function("document.getElementById('ringLabel').textContent === 'studying'")
+            assert status()["focus_kind"] == "study"
+            page.click("#focusStop")
+            page.wait_for_function("document.getElementById('focusStop').disabled === true")
+            stats_now = page.request.get(URL + "/api/stats").json()["today"]
+            assert stats_now["focus"] == focus_before and stats_now["study"] == study_before, stats_now
+            print("study session: separate ring label, own stat, verified", flush=True)
+
+            # 2e-3. Timetable: add, "now" chip, edit, delete
+            for blk in page.request.get(URL + "/api/stats").json()["timetable"]:
+                if blk["label"].startswith("Verify block"):
+                    page.request.post(URL + "/api/timetable", data=json.dumps({"action": "delete", "id": blk["id"]}), headers=api_headers)
+            now_local = datetime.now()
+            today_idx = (now_local.weekday())   # Python Monday=0, matches the engine's day field
+            start_dt = now_local - timedelta(minutes=2)
+            end_dt = now_local + timedelta(minutes=30)
+            tt_label = "Verify block %d" % int(time.time())
+            page.select_option("#ttDay", str(today_idx))
+            page.fill("#ttStart", start_dt.strftime("%H:%M"))
+            page.fill("#ttEnd", end_dt.strftime("%H:%M"))
+            page.select_option("#ttKind", "study")
+            page.fill("#ttLabel", tt_label)
+            page.click("#ttForm button[type=submit]")
+            page.wait_for_function("document.getElementById('ttNow').textContent.includes(%s)" % json.dumps(tt_label))
+            blocks = page.request.get(URL + "/api/stats").json()["timetable"]
+            blk = [b for b in blocks if b["label"] == tt_label][0]
+            assert blk["day"] == today_idx and blk["kind"] == "study", blk
+            row = page.locator(".tt-block", has_text=tt_label)
+            assert "active" in (row.get_attribute("class") or ""), "current block should be marked active"
+            row.locator("button", has_text="Edit").click()
+            page.wait_for_function("document.getElementById('ttLabel').value === %s" % json.dumps(tt_label))
+            page.fill("#ttLabel", tt_label + " (edited)")
+            page.click("#ttForm button[type=submit]")
+            page.wait_for_selector(".tt-block:has-text('%s (edited)')" % tt_label)
+            blocks = page.request.get(URL + "/api/stats").json()["timetable"]
+            assert any(b["label"] == tt_label + " (edited)" for b in blocks)
+            # invalid range (end before start) is rejected client-side, no bad request sent
+            page.fill("#ttStart", "10:00"); page.fill("#ttEnd", "09:00"); page.fill("#ttLabel", "Should not save")
+            page.click("#ttForm button[type=submit]")
+            page.wait_for_timeout(400)
+            assert not any(b["label"] == "Should not save" for b in page.request.get(URL + "/api/stats").json()["timetable"])
+            page.locator(".tt-block", has_text=tt_label + " (edited)").locator(".btn.del").click()
+            page.wait_for_selector(".tt-block:has-text('%s (edited)')" % tt_label, state="detached")
+            assert not any(b["label"] == tt_label + " (edited)" for b in page.request.get(URL + "/api/stats").json()["timetable"])
+            print("timetable: add, now/next, edit, invalid-range rejection, delete verified", flush=True)
 
             # 2f. Settings page: every control type, search, appearance
             goto_view("settings")
@@ -386,23 +494,15 @@ def main():
             page.wait_for_function("document.body.dataset.view === 'health'")
             print("emotes, actions, live presence and keyboard navigation verified", flush=True)
 
-            # 3. Test Daily Exercise Reset & Corrupt LocalStorage Recovery
-            page.evaluate("localStorage.setItem('deskpal-exercises', 'not-valid-json')")
+            # 3. Corrupt localStorage (theme/accent - exercises moved to the
+            #    engine in 1.5 and no longer read localStorage at all) must
+            #    never crash the page.
+            page.evaluate("localStorage.setItem('deskpal-theme', 'not-a-real-theme'); "
+                          "localStorage.setItem('deskpal-accent', '{not json at all')")
             page.reload()
             page.wait_for_function("document.body.dataset.view === 'health'")   # hash keeps the page
             page.wait_for_selector("#exerciseList")
             assert not errors, "Corrupt localStorage crashed dashboard"
-
-            # Exercise daily reset test
-            yesterday_exercise = [
-                {"name": "Old Stretch", "minutes": 2, "done": True, "doneDate": "2000-01-01"}
-            ]
-            page.evaluate(f"localStorage.setItem('deskpal-exercises', '{json.dumps(yesterday_exercise)}')")
-            page.reload()
-            page.wait_for_function("document.body.dataset.view === 'health'")
-            page.wait_for_selector("#exerciseList")
-            done_count = page.locator("#exerciseList .item.done").count()
-            assert done_count == 0, f"Exercise done state did not reset for new day, got {done_count}"
 
             page.screenshot(path=str(output / "deskpal-dashboard.png"))
 

@@ -496,9 +496,10 @@ function renderNextReminder() {
 const RING = 540.35;
 function renderFocus() {
   const fill = $('#ringFill'), time = $('#ringTime'), label = $('#ringLabel'), chip = $('#focusStatus');
-  const start = $('#focusStart'), stop = $('#focusStop'), brk = $('#breakStart');
+  const start = $('#focusStart'), stop = $('#focusStop'), brk = $('#breakStart'), study = $('#studyStart');
   const canControl = desktopOnline && status && status.running;
   start.disabled = !canControl || !!focusLocal; stop.disabled = !canControl || !focusLocal; brk.disabled = !canControl || !!focusLocal;
+  if (study) study.disabled = !canControl || !!focusLocal;
   if (!focusLocal) {
     fill.style.strokeDashoffset = RING; fill.classList.remove('break');
     time.textContent = fmtClock((parseInt($('#focusMinutes').value, 10) || 25) * 60);
@@ -511,8 +512,8 @@ function renderFocus() {
   fill.style.strokeDashoffset = RING * (1 - pct);
   fill.classList.toggle('break', focusLocal.kind !== 'focus');
   time.textContent = fmtClock(left);
-  label.textContent = (focusLocal.kind === 'focus' ? 'focusing' : focusLocal.kind === 'break' ? 'on a break' : focusLocal.label || 'timer');
-  chip.textContent = focusLocal.kind === 'focus' ? 'In session' : 'Break'; chip.className = 'status-chip on';
+  label.textContent = (focusLocal.kind === 'focus' ? 'focusing' : focusLocal.kind === 'study' ? 'studying' : focusLocal.kind === 'break' ? 'on a break' : focusLocal.label || 'timer');
+  chip.textContent = focusLocal.kind === 'break' ? 'Break' : 'In session'; chip.className = 'status-chip on';
   if (left <= 0) { focusLocal = null; setTimeout(loadStats, 1200); }
 }
 setInterval(renderFocus, 1000);
@@ -521,8 +522,10 @@ function renderFocusStats() {
   const week = hist.reduce((n, d) => n + (d.focus || 0), 0);
   const best = hist.reduce((b, d) => (d.focus || 0) > (b.focus || 0) ? d : b, { focus: 0 });
   const box = $('#focusStats'); box.innerHTML = '';
-  [[String(t.focus || 0), 'sessions today'], [String(week), 'this week'], [best.focus ? best.focus + ' · ' + best.label : '—', 'best day this week'],
-   [String(tot.focus || 0), 'all time'], [String(stats && stats.streaks ? stats.streaks.focus || 0 : 0), 'day streak'], [fmtMin(t.active_min || 0), 'active today']]
+  const studyT = (stats && stats.targets ? stats.targets.study : 0) || 0;
+  [[String(t.focus || 0), 'focus sessions today'], [String(week), 'this week'], [best.focus ? best.focus + ' · ' + best.label : '—', 'best day this week'],
+   [String(tot.focus || 0), 'all time'], [String(stats && stats.streaks ? stats.streaks.focus || 0 : 0), 'day streak'], [fmtMin(t.active_min || 0), 'active today'],
+   [String(t.study || 0) + (studyT ? ' / ' + studyT : ''), 'study sessions today'], [String(stats && stats.streaks ? stats.streaks.study || 0 : 0), 'study day streak']]
     .forEach(([v, name]) => { const d = h('div'); d.appendChild(h('b', '', v)); d.appendChild(h('span', '', name)); box.appendChild(d); });
   $$('#focusPresets .preset').forEach((b) => b.classList.toggle('active', settings && String(settings.focus_len) === b.dataset.focus && String(settings.focus_break) === b.dataset.break));
 }
@@ -550,6 +553,15 @@ $('#breakStart').onclick = async () => {
   try { applyStats(await api('/api/focus', 'POST', { action: 'break' })); $('#focusHint').textContent = 'Break started — step away from the screen.'; }
   catch (e) { $('#focusHint').textContent = 'Could not reach DeskPal.'; }
 };
+$('#studyStart').onclick = async () => {
+  try { applyStats(await api('/api/focus', 'POST', { action: 'study', minutes: settings ? settings.study_len : 45 })); $('#focusHint').textContent = 'Study session started — Ganesh will stay quiet.'; }
+  catch (e) { $('#focusHint').textContent = 'Could not start the session. Is Ganesh running?'; }
+};
+async function startStudyMinutes(minutes) {
+  applyStats(await api('/api/focus', 'POST', { action: 'study', minutes }));
+  showView('focus');
+  $('#focusHint').textContent = 'Study session started from your timetable.';
+}
 
 // ─── goals ───────────────────────────────────────────────────────────────
 let goalsSig = '';
@@ -601,54 +613,67 @@ function flash(sel, text, cls) {
 }
 
 // ─── exercises (local list, completions counted by DeskPal) ──────────────
-const defaultExercises = [
-  { name: 'Desk stretch', minutes: 2 }, { name: 'Shoulder rolls', minutes: 2 }, { name: 'Short walk', minutes: 5 }
-];
-function loadExercises() {
-  const today = todayISO();
-  try {
-    const parsed = JSON.parse(storageGet('deskpal-exercises') || 'null');
-    if (!Array.isArray(parsed) || !parsed.length) throw new Error('empty');
-    return parsed.map((x) => ({
-      name: typeof x.name === 'string' && x.name.trim() ? x.name.trim().slice(0, 40) : 'Exercise',
-      minutes: Number.isFinite(x.minutes) && x.minutes > 0 ? Math.min(120, Math.round(x.minutes)) : 2,
-      doneDate: x.doneDate === today ? today : ''
-    }));
-  } catch (e) { return defaultExercises.map((x) => ({ ...x, doneDate: '' })); }
-}
-let exercises = loadExercises();
-function saveExercises() { storageSet('deskpal-exercises', JSON.stringify(exercises)); }
+// exercises: engine-owned (streaks + 7-day history), matching the goals /
+// custom-reminders pattern exactly - never touched from here again once
+// the render only runs when the engine's own list actually changed.
+let exSig = '';
 function renderExercises() {
+  const items = (stats && stats.exercises) || [];
+  const sig = JSON.stringify([desktopOnline, items]);
+  if (sig === exSig) return;
+  exSig = sig;
   const list = $('#exerciseList');
-  list.innerHTML = '';
-  const today = todayISO();
-  exercises.forEach((x, i) => {
-    const done = x.doneDate === today;
-    const row = h('div', 'item' + (done ? ' done' : ''));
+  if (!desktopOnline) { list.innerHTML = '<div class="empty-list">Launch Ganesh to load and save your exercises.</div>'; return; }
+  if (!items.length) { list.innerHTML = '<div class="empty-list">No exercises yet. Add one to build a routine.</div>'; return; }
+  const fragment = document.createDocumentFragment();
+  items.forEach((x) => {
+    const row = h('div', 'item' + (x.done_today ? ' done' : ''));
     const text = h('div');
-    text.appendChild(h('strong', '', x.name)); text.appendChild(h('small', '', x.minutes + ' min' + (done ? ' · done today' : '')));
+    const name = h('strong', '', x.name);
+    if (x.streak > 0) name.appendChild(h('span', 'streak-badge', x.streak + (x.streak === 1 ? ' day' : ' days')));
+    if (Array.isArray(x.week)) {
+      const dots = h('span', 'week-dots'); dots.title = 'Last 7 days';
+      x.week.forEach((v, i) => dots.appendChild(h('i', (v ? 'on' : '') + (i === x.week.length - 1 ? ' today' : ''))));
+      name.appendChild(dots);
+    }
+    text.appendChild(name);
+    text.appendChild(h('small', '', x.minutes + ' min · ' + (x.done_today ? 'done today' : 'not yet today')));
     const actions = h('div', 'item-actions');
-    const btn = h('button', 'btn ' + (done ? 'done-btn' : 'ghost'), done ? 'Done ✓' : 'Mark done');
+    const minutesInput = h('input', 'mini'); minutesInput.type = 'number'; minutesInput.min = '1'; minutesInput.max = '120';
+    minutesInput.value = x.minutes; minutesInput.title = 'Minutes'; minutesInput.setAttribute('aria-label', x.name + ' minutes');
+    let minutesTimer = null;
+    const saveMinutes = async () => {
+      const v = clampNum(minutesInput.value, { min: 1, max: 120 });
+      if (v === null) return;
+      minutesInput.value = v;
+      try { applyStats(await api('/api/exercises', 'POST', { action: 'update', id: x.id, minutes: v })); }
+      catch (e) { flash('#healthStatus', 'Could not save', 'warn'); }
+    };
+    minutesInput.oninput = () => { clearTimeout(minutesTimer); minutesTimer = setTimeout(saveMinutes, 500); };
+    minutesInput.onchange = () => { clearTimeout(minutesTimer); saveMinutes(); };
+    const btn = h('button', 'btn ' + (x.done_today ? 'done-btn' : 'ghost'), x.done_today ? 'Done ✓' : 'Mark done');
     btn.onclick = async () => {
-      x.doneDate = done ? '' : today;
-      saveExercises(); renderExercises();
-      if (!done && desktopOnline) { try { applyStats(await api('/api/exercise_done', 'POST')); } catch (e) { /* counted locally only */ } }
+      try { applyStats(await api('/api/exercises', 'POST', { action: 'done', id: x.id })); flash('#healthStatus', x.name + ' — counted', 'on'); }
+      catch (e) { flash('#healthStatus', 'Could not save', 'warn'); }
     };
     const del = h('button', 'btn ghost del', '×'); del.title = 'Remove exercise';
-    del.onclick = () => { exercises.splice(i, 1); saveExercises(); renderExercises(); };
-    actions.appendChild(btn); actions.appendChild(del);
+    del.onclick = async () => {
+      try { applyStats(await api('/api/exercises', 'POST', { action: 'delete', id: x.id })); }
+      catch (e) { flash('#healthStatus', 'Could not remove', 'warn'); }
+    };
+    actions.appendChild(minutesInput); actions.appendChild(btn); actions.appendChild(del);
     row.appendChild(text); row.appendChild(actions);
-    list.appendChild(row);
+    fragment.appendChild(row);
   });
-  if (!exercises.length) list.innerHTML = '<div class="empty-list">No exercises. Add one to build a routine.</div>';
+  list.replaceChildren(fragment);
 }
 const dialog = $('#dialog');
 $('#addExercise').onclick = () => { dialog.showModal(); $('#name').focus(); };
-$('#save').onclick = (e) => {
+$('#save').onclick = async (e) => {
   const name = $('#name').value.trim(), minutes = parseInt($('#minutes').value, 10);
   if (!name || !Number.isFinite(minutes) || minutes < 1 || minutes > 120) { e.preventDefault(); return; }
-  exercises.push({ name: name.slice(0, 40), minutes, doneDate: '' });
-  saveExercises(); renderExercises();
+  try { applyStats(await api('/api/exercises', 'POST', { action: 'add', name: name.slice(0, 40), minutes })); flash('#healthStatus', 'Exercise added', 'on'); }
+  catch (err) { flash('#healthStatus', 'Launch Ganesh first', 'warn'); }
   $('#name').value = ''; $('#minutes').value = '2';
 };
 
@@ -790,7 +815,7 @@ function renderLiveStrip() {
   foc.hidden = !status.focus_kind;
   if (!foc.hidden) foc.innerHTML = (status.focus_kind === 'focus' ? 'Focus' : 'Break') + ' · <b>' + fmtClock(Math.max(0, status.focus_left - drift)) + '</b> left';
 }
-setInterval(() => { renderLiveStrip(); renderNextReminder(); renderReminderLive(); }, 1000);
+setInterval(() => { renderLiveStrip(); renderNextReminder(); renderReminderLive(); renderTimetableNow(); }, 1000);
 
 // ─── settings engine: schema-driven controls, saved live to the engine ───
 // Several controls may bind to one key (Health cards + Settings page), so
@@ -1016,8 +1041,10 @@ const EVERY_OPTIONS = [10, 15, 20, 30, 45, 60, 90, 120, 150, 180, 240, 360, 480]
 const REMINDERS = [
   { key: 'break', name: 'Break', blurb: 'After a stretch of real work, step away for a few minutes.', color: 1, on: 'break_on', every: 'break_every', everyLabel: 'After', everyUnit: 'min of active work', min: 5, max: 240, target: 'break_target', counter: 'breaks', msg: 'break_msg',
     extra: [{ key: 'break_len', type: 'number', label: 'Break length', min: 1, max: 60, unit: 'min' }] },
-  { key: 'eye', name: 'Eye rest', blurb: '20-20-20: every 20 minutes, look 20 feet away for 20 seconds.', color: 2, on: 'eye_on', every: 'eye_every', min: 5, max: 180, target: 'eye_target', counter: 'eye', msg: 'eye_msg', log: 'eye', logLabel: 'Rested my eyes' },
-  { key: 'water', name: 'Water', blurb: 'A glass at a time. Ganesh gets thirsty too.', color: 1, on: 'water_on', every: 'water_every', min: 10, max: 360, target: 'water_target', counter: 'water', msg: 'water_msg', log: 'water', logLabel: 'Drank a glass' },
+  { key: 'eye', name: 'Eye rest', blurb: '20-20-20: every 20 minutes, look 20 feet away for 20 seconds.', color: 2, on: 'eye_on', every: 'eye_every', min: 5, max: 180, target: 'eye_target', counter: 'eye', msg: 'eye_msg', log: 'eye', logLabel: 'Rested my eyes',
+    extra: [{ key: 'eye_exercise', type: 'select', label: 'Exercise', options: [['look_away', '20-20-20 look away'], ['rolling', 'Eye rolling'], ['palming', 'Palming'], ['near_far', 'Near-far focus'], ['blink', 'Blink exercise']] }] },
+  { key: 'water', name: 'Water', blurb: 'A glass at a time. Ganesh gets thirsty too.', color: 1, on: 'water_on', every: 'water_every', min: 10, max: 360, target: 'water_target', counter: 'water', msg: 'water_msg', log: 'water', logLabel: 'Drank a glass',
+    extra: [{ key: 'water_glass_ml', type: 'number', label: 'Glass size', min: 50, max: 1000, unit: 'ml' }] },
   { key: 'stretch', name: 'Stretch', blurb: 'Shoulders, neck, wrists — Ganesh suggests a different one each time.', color: 3, on: 'stretch_on', every: 'stretch_every', min: 10, max: 360, target: 'stretch_target', counter: 'stretch', msg: 'stretch_msg', log: 'stretch', logLabel: 'Stretched' },
   { key: 'posture', name: 'Posture', blurb: 'Sit back, screen at eye level, shoulders down.', color: 5, on: 'posture_on', every: 'posture_every', min: 5, max: 240, target: 'posture_target', counter: 'posture', msg: 'posture_msg', log: 'posture', logLabel: 'Fixed my posture' },
   { key: 'hunger', name: 'Snack', blurb: 'A modak for Ganesh, something real for you.', color: 4, on: 'hunger_on', every: 'hunger_every', min: 30, max: 480, counter: 'hunger', msg: 'hunger_msg', log: 'hunger', logLabel: 'Had a snack' },
@@ -1063,6 +1090,12 @@ function buildReminderCards() {
     body.appendChild(msgWrap);
     // actions
     const actions = h('div', 'rcard-actions');
+    let timeline = null;
+    if (r.key === 'water') {
+      timeline = h('div', 'water-timeline'); timeline.title = 'Today, by hour';
+      for (let i = 0; i < 24; i++) timeline.appendChild(h('i'));
+      progress.appendChild(timeline);
+    }
     if (r.log) {
       const logBtn = h('button', 'btn soft sm', '+ ' + r.logLabel); logBtn.dataset.log = r.log;
       logBtn.onclick = async () => {
@@ -1071,13 +1104,20 @@ function buildReminderCards() {
         catch (e) { flash('#healthStatus', 'Launch Ganesh first', 'warn'); }
         finally { logBtn.disabled = false; }
       };
-      actions.appendChild(logBtn);
+      const undoBtn = h('button', 'btn ghost sm rcard-undo', '−1'); undoBtn.title = 'Undo the last one — corrects a misclick';
+      undoBtn.onclick = async () => {
+        undoBtn.disabled = true;
+        try { applyStats(await api('/api/log', 'POST', { what: r.log, undo: true })); flash('#healthStatus', 'Undone', 'on'); }
+        catch (e) { flash('#healthStatus', 'Could not undo', 'warn'); }
+        finally { undoBtn.disabled = false; }
+      };
+      actions.appendChild(logBtn); actions.appendChild(undoBtn);
     }
     actions.appendChild(h('span', 'spacer'));
     actions.appendChild(chip);
     card.appendChild(head); card.appendChild(live); card.appendChild(progress); card.appendChild(body); card.appendChild(actions);
     grid.appendChild(card);
-    reminderCards[r.key] = { card, next, count, bar: barFill, chip, def: r };
+    reminderCards[r.key] = { card, next, count, bar: barFill, chip, def: r, timeline };
   });
 }
 function rcardRow(def, chip, card, r) {
@@ -1114,10 +1154,15 @@ function renderReminderLive() {
     const today = t[r.counter] || 0;
     const target = r.target && settings ? settings[r.target] : 0;
     c.count.innerHTML = '<b>' + today + '</b>' + (target ? ' / ' + target : '') + ' today';
+    if (r.key === 'water' && t.water_ml) c.count.innerHTML += ' · ' + t.water_ml + ' ml';
     const pct = target ? Math.min(1, today / target) : (info && info.left != null && settings && settings[r.every] ? 1 - Math.max(0, info.left - drift) / (settings[r.every] * 60) : 0);
     c.bar.style.width = (pct * 100).toFixed(1) + '%';
     c.bar.classList.toggle('done', !!target && today >= target);
     c.bar.style.background = target ? '' : 'var(--s' + r.color + ')';
+    if (c.timeline) {
+      const wh = t.water_hours || [];
+      Array.from(c.timeline.children).forEach((cell, i) => cell.classList.toggle('on', (wh[i] || 0) > 0));
+    }
   });
   renderCustomLive();
 }
@@ -1202,6 +1247,112 @@ $('#customForm').onsubmit = async (ev) => {
   } catch (e) { flash('#customStatus', 'Launch Ganesh first', 'warn'); }
 };
 
+// ─── timetable (Focus): weekly schedule, "now" / "next", study one-click ─
+const TT_DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const TT_DAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const TT_KIND_LABEL = { study: 'Study', class: 'Class', work: 'Work', break: 'Break', other: 'Other' };
+function ttKindColor(kind) { return kind === 'study' ? series(5) : kind === 'class' ? series(1) : kind === 'work' ? series(4) : kind === 'break' ? series(3) : 'var(--muted)'; }
+function pad2(n) { return String(n).padStart(2, '0'); }
+function ttToday() { return (new Date().getDay() + 6) % 7; }   // JS Sunday=0 -> our Monday=0
+function renderTimetableNow() {
+  const box = $('#ttNow'); if (!box) return;
+  const items = (stats && stats.timetable) || [];
+  box.innerHTML = '';
+  if (!items.length) { box.innerHTML = '<span class="hint" style="margin:0">Add your first block below — classes, work, or study sessions.</span>'; return; }
+  const now = new Date(), ourDay = ttToday(), nowMin = ourDay * 1440 + now.getHours() * 60 + now.getMinutes();
+  let current = null, next = null, bestDelta = Infinity;
+  items.forEach((b) => {
+    const s0 = b.day * 1440 + b.start_h * 60 + b.start_m, e0 = b.day * 1440 + b.end_h * 60 + b.end_m;
+    if (nowMin >= s0 && nowMin < e0) current = b;
+    [0, 7 * 1440].forEach((offset) => { const delta = s0 + offset - nowMin; if (delta > 0 && delta < bestDelta) { bestDelta = delta; next = b; } });
+  });
+  if (current) { const c = h('span', 'chip now'); c.innerHTML = '<span class="dot"></span>Now: <b>' + current.label + '</b>'; box.appendChild(c); }
+  if (next) {
+    const mins = Math.max(0, Math.round(bestDelta));
+    const c = h('span', 'chip'); c.innerHTML = 'Next: <b>' + next.label + '</b> ' + (mins < 1440 ? 'in ' + fmtMin(mins) : 'on ' + TT_DAY_SHORT[next.day]);
+    box.appendChild(c);
+  }
+  if (!current && !next) box.innerHTML = '<span class="hint" style="margin:0">Nothing scheduled right now.</span>';
+}
+let ttEditingId = null;
+function ttResetForm() {
+  ttEditingId = null;
+  $('#ttForm').reset(); $('#ttStart').value = '09:00'; $('#ttEnd').value = '10:00';
+  $('#ttForm button[type=submit]').textContent = 'Add block';
+}
+function ttEditBlock(b) {
+  ttEditingId = b.id;
+  $('#ttDay').value = String(b.day);
+  $('#ttStart').value = pad2(b.start_h) + ':' + pad2(b.start_m);
+  $('#ttEnd').value = pad2(b.end_h) + ':' + pad2(b.end_m);
+  $('#ttKind').value = b.kind;
+  $('#ttLabel').value = b.label;
+  $('#ttForm button[type=submit]').textContent = 'Save changes';
+  $('#ttLabel').focus();
+  $('#ttForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+let ttSig = '';
+function renderTimetable() {
+  renderTimetableNow();
+  const items = (stats && stats.timetable) || [];
+  const sig = JSON.stringify([desktopOnline, items]);
+  if (sig === ttSig) return;
+  ttSig = sig;
+  const list = $('#ttList');
+  if (!desktopOnline) { list.innerHTML = '<div class="empty-list">Launch Ganesh to load and save your timetable.</div>'; return; }
+  if (!items.length) { list.innerHTML = '<div class="empty-list">No blocks yet. Add your classes, work hours or study sessions above.</div>'; return; }
+  const ourDay = ttToday(), nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+  const byDay = TT_DAY_NAMES.map(() => []);
+  items.forEach((b) => { if (byDay[b.day]) byDay[b.day].push(b); });
+  byDay.forEach((arr) => arr.sort((a, b) => (a.start_h * 60 + a.start_m) - (b.start_h * 60 + b.start_m)));
+  const frag = document.createDocumentFragment();
+  TT_DAY_NAMES.forEach((name, di) => {
+    if (!byDay[di].length) return;
+    const sec = h('div', 'tt-day');
+    sec.appendChild(h('div', 'tt-day-label', name));
+    byDay[di].forEach((b) => {
+      const active = di === ourDay && nowMin >= b.start_h * 60 + b.start_m && nowMin < b.end_h * 60 + b.end_m;
+      const row = h('div', 'tt-block' + (active ? ' active' : ''));
+      const dot = h('span', 'tt-block-kind'); dot.style.setProperty('--c', ttKindColor(b.kind)); dot.title = TT_KIND_LABEL[b.kind] || 'Other';
+      row.appendChild(dot);
+      row.appendChild(h('span', 'tt-block-time', pad2(b.start_h) + ':' + pad2(b.start_m) + ' \u2013 ' + pad2(b.end_h) + ':' + pad2(b.end_m)));
+      row.appendChild(h('span', 'tt-block-label', b.label));
+      if (b.kind === 'study') {
+        const startBtn = h('button', 'btn soft sm', 'Start');
+        startBtn.onclick = () => startStudyMinutes(Math.max(5, (b.end_h * 60 + b.end_m) - (b.start_h * 60 + b.start_m)));
+        row.appendChild(startBtn);
+      }
+      const editBtn = h('button', 'btn ghost sm', 'Edit'); editBtn.onclick = () => ttEditBlock(b);
+      const delBtn = h('button', 'btn ghost sm del', '\u00d7'); delBtn.title = 'Remove';
+      delBtn.onclick = async () => {
+        try { applyStats(await api('/api/timetable', 'POST', { action: 'delete', id: b.id })); if (ttEditingId === b.id) ttResetForm(); }
+        catch (e) { flash('#timetableStatus', 'Could not remove', 'warn'); }
+      };
+      row.appendChild(editBtn); row.appendChild(delBtn);
+      sec.appendChild(row);
+    });
+    frag.appendChild(sec);
+  });
+  list.replaceChildren(frag);
+}
+$('#ttForm').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const [sh, sm] = $('#ttStart').value.split(':').map((n) => parseInt(n, 10));
+  const [eh, em] = $('#ttEnd').value.split(':').map((n) => parseInt(n, 10));
+  if (!Number.isFinite(sh) || !Number.isFinite(eh) || eh * 60 + em <= sh * 60 + sm) {
+    flash('#timetableStatus', 'End must be after start', 'warn'); return;
+  }
+  const label = $('#ttLabel').value.trim();
+  if (!label) return;
+  const body = { day: parseInt($('#ttDay').value, 10), start_h: sh, start_m: sm, end_h: eh, end_m: em, kind: $('#ttKind').value, label };
+  try {
+    if (ttEditingId) applyStats(await api('/api/timetable', 'POST', { action: 'update', id: ttEditingId, ...body }));
+    else applyStats(await api('/api/timetable', 'POST', { action: 'add', ...body }));
+    flash('#timetableStatus', 'Saved', 'on');
+    ttResetForm();
+  } catch (e) { flash('#timetableStatus', 'Launch Ganesh first', 'warn'); }
+};
+
 // ─── live pill ───────────────────────────────────────────────────────────
 function renderLive() {
   const pill = $('#livePill'), text = $('#liveText'), launch = $('#launch');
@@ -1237,10 +1388,10 @@ async function loadStatus() {
   renderStatus();
 }
 function renderStatus() {
-  renderLive(); renderNextReminder(); renderFocus(); renderGoals(); renderCustom(); renderPresence(); renderLiveStrip(); renderReminderLive();
+  renderLive(); renderNextReminder(); renderFocus(); renderGoals(); renderCustom(); renderExercises(); renderTimetable(); renderPresence(); renderLiveStrip(); renderReminderLive();
 }
 function renderAll() {
-  renderTiles(); renderFocus(); renderFocusStats(); renderGoals(); renderCustom(); drawRings(); renderReminderCards(); renderHeatmap();
+  renderTiles(); renderFocus(); renderFocusStats(); renderGoals(); renderCustom(); renderExercises(); renderTimetable(); drawRings(); renderReminderCards(); renderHeatmap();
   const hist = (stats && stats.history) || [];
   const week = hist.length ? hist : emptyWeek();
   drawActivity($('#activityChart'), (stats && stats.today && stats.today.hours) || []);
@@ -1259,7 +1410,6 @@ let resizeTimer = null;
 window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderAll, 150); });
 
 // ─── boot ────────────────────────────────────────────────────────────────
-renderExercises();
 showView(location.hash ? location.hash.slice(1) : 'today', false);
 setTimeout(() => window.scrollTo(0, 0), 0);   // undo the browser's own #hash jump
 loadStatus();

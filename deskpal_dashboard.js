@@ -75,7 +75,12 @@ function todayISO() {
 function hourLabel(hh) { return hh === 0 ? '12 am' : hh < 12 ? hh + ' am' : hh === 12 ? '12 pm' : (hh - 12) + ' pm'; }
 
 // ─── API ─────────────────────────────────────────────────────────────────
+// The engine only ever serves plain http on the loopback interface, so an
+// https page (e.g. a hosted copy of this dashboard) can never reach it —
+// skip the doomed request instead of letting it fail noisily every poll.
+const ENGINE_REACHABLE = location.protocol !== 'https:';
 async function api(path, method = 'GET', body = null) {
+  if (!ENGINE_REACHABLE) throw new Error('engine unreachable from this origin');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 6000);
   try {
